@@ -1,0 +1,219 @@
+class_name PlayerVisual
+extends Node3D
+## Procedural placeholder body + procedural animation.
+##
+## Pure presentation: reads RugbyPlayer state, never writes it. Built from
+## primitive meshes so the project has zero third-party assets. Will be
+## replaced by a skinned character + AnimationTree later; the contract
+## (read-only view of RugbyPlayer) stays the same.
+##
+## Model forward is -Z (Godot convention).
+
+const HIP_HEIGHT := 0.95
+const LEG_LENGTH := 0.92
+const ARM_LENGTH := 0.68
+const SHOULDER_HEIGHT := 1.5
+
+var player: RugbyPlayer
+
+var _rig: Node3D        # yaw
+var _lean: Node3D       # pitch/roll, pivots at the feet
+var _body: Node3D       # bob
+var _leg_l: Node3D
+var _leg_r: Node3D
+var _arm_l: Node3D
+var _arm_r: Node3D
+var _ring: MeshInstance3D
+var _ring_pointer: MeshInstance3D
+
+var _phase := 0.0
+var _yaw := 0.0
+var _pitch := 0.0
+var _roll := 0.0
+var _ground_blend := 0.0
+
+
+func _ready() -> void:
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	_build()
+	if player:
+		_yaw = _facing_to_yaw(player.facing)
+
+
+func _build() -> void:
+	var c := player.team_colors if player else {}
+	var jersey := _mat(c.get("jersey", Color("#1f4fa3")))
+	var shorts := _mat(c.get("shorts", Color.WHITE))
+	var socks := _mat(c.get("socks", Color("#1f4fa3")))
+	var skin := _mat(Color("#c99a78"))
+	var boots := _mat(Color("#1a1a1a"))
+
+	_rig = Node3D.new()
+	_rig.name = "Rig"
+	add_child(_rig)
+	_lean = Node3D.new()
+	_lean.name = "Lean"
+	_rig.add_child(_lean)
+	_body = Node3D.new()
+	_body.name = "Body"
+	_lean.add_child(_body)
+
+	# Torso (jersey) — slightly broad, rugby build.
+	var torso := _capsule(0.27, 0.78, jersey)
+	torso.position = Vector3(0, 1.28, 0)
+	torso.scale = Vector3(1.25, 1.0, 0.85)
+	_body.add_child(torso)
+	# Shorts.
+	var hips := _box(Vector3(0.52, 0.26, 0.32), shorts)
+	hips.position = Vector3(0, HIP_HEIGHT, 0)
+	_body.add_child(hips)
+	# Head + neck.
+	var neck := _capsule(0.09, 0.2, skin)
+	neck.position = Vector3(0, 1.7, 0)
+	_body.add_child(neck)
+	var head := _sphere(0.13, skin)
+	head.position = Vector3(0, 1.84, -0.01)
+	_body.add_child(head)
+
+	_leg_l = _limb(Vector3(-0.14, HIP_HEIGHT - 0.06, 0), LEG_LENGTH, 0.085, skin, socks, boots)
+	_leg_r = _limb(Vector3(0.14, HIP_HEIGHT - 0.06, 0), LEG_LENGTH, 0.085, skin, socks, boots)
+	_arm_l = _limb(Vector3(-0.36, SHOULDER_HEIGHT, 0), ARM_LENGTH, 0.06, jersey, skin, skin)
+	_arm_r = _limb(Vector3(0.36, SHOULDER_HEIGHT, 0), ARM_LENGTH, 0.06, jersey, skin, skin)
+
+	# Control indicator: ring + pointer showing facing (readability first).
+	var ind_mat := StandardMaterial3D.new()
+	ind_mat.albedo_color = c.get("indicator", Color("#ffd23f"))
+	ind_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ind_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	ind_mat.albedo_color.a = 0.9
+	_ring = MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.56
+	torus.outer_radius = 0.64
+	torus.rings = 32
+	_ring.mesh = torus
+	_ring.material_override = ind_mat
+	_ring.position.y = 0.03
+	_ring.scale = Vector3(1, 0.15, 1)
+	_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_rig.add_child(_ring)
+	_ring_pointer = MeshInstance3D.new()
+	var prism := PrismMesh.new()
+	prism.size = Vector3(0.28, 0.3, 0.02)
+	_ring_pointer.mesh = prism
+	_ring_pointer.material_override = ind_mat
+	_ring_pointer.rotation_degrees = Vector3(-90, 0, 0)
+	_ring_pointer.position = Vector3(0, 0.03, -0.82)
+	_ring_pointer.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_rig.add_child(_ring_pointer)
+
+
+## Limb pivoting at `origin`, hanging down: upper segment, lower segment, end.
+func _limb(origin: Vector3, length: float, radius: float, upper_mat: Material, lower_mat: Material, end_mat: Material) -> Node3D:
+	var pivot := Node3D.new()
+	pivot.position = origin
+	_body.add_child(pivot)
+	var upper := _capsule(radius * 1.15, length * 0.55, upper_mat)
+	upper.position.y = -length * 0.25
+	pivot.add_child(upper)
+	var lower := _capsule(radius, length * 0.55, lower_mat)
+	lower.position.y = -length * 0.68
+	pivot.add_child(lower)
+	var end := _box(Vector3(radius * 2.2, radius * 1.4, radius * 3.2), end_mat)
+	end.position = Vector3(0, -length + radius * 0.7, -radius * 0.8)
+	pivot.add_child(end)
+	return pivot
+
+
+func _process(delta: float) -> void:
+	if player == null:
+		return
+	var spd := player.current_speed()
+	var top := maxf(player.stats.sprint_top, 0.1)
+	var speed_t := clampf(spd / top, 0.0, 1.0)
+
+	# Yaw follows facing (already rate-limited in the simulation).
+	var target_yaw := _facing_to_yaw(player.facing)
+	_yaw = lerp_angle(_yaw, target_yaw, 1.0 - exp(-25.0 * delta))
+	_rig.rotation.y = _yaw
+
+	# Lean from acceleration expressed in the body frame.
+	var fwd := player.facing
+	var side := Vector2(-fwd.y, fwd.x)
+	var a := player.planar_accel
+	var a_fwd := a.dot(fwd)
+	var a_side := a.dot(side)
+	var target_pitch := clampf(-(a_fwd * 0.022 + speed_t * 0.16), -0.42, 0.18)
+	# Lean into the turn: centripetal accel to the right -> top tilts right (-Z roll).
+	var target_roll := clampf(-a_side * 0.028, -0.35, 0.35)
+	var k := 1.0 - exp(-10.0 * delta)
+	_pitch = lerpf(_pitch, target_pitch, k)
+	_roll = lerpf(_roll, target_roll, k)
+
+	# Grounded pose blend.
+	var grounded := 1.0 if player.state == RugbyPlayer.State.GROUNDED else 0.0
+	var ground_rate := 9.0 if grounded > 0.5 else 3.2
+	_ground_blend = lerpf(_ground_blend, grounded, 1.0 - exp(-ground_rate * delta))
+	_lean.rotation = Vector3(lerpf(_pitch, -1.45, _ground_blend), 0.0, _roll * (1.0 - _ground_blend))
+
+	# Stride cycle: frequency rises with speed, stride lengthens.
+	var stride_len := 1.1 + speed_t * 1.3
+	_phase = fmod(_phase + (spd / stride_len) * PI * delta, TAU)
+	var amp := clampf(spd / 2.5, 0.0, 1.0) * lerpf(0.45, 0.85, speed_t) * (1.0 - _ground_blend)
+	var s := sin(_phase)
+	_leg_l.rotation.x = s * amp
+	_leg_r.rotation.x = -s * amp
+	_arm_l.rotation.x = -s * amp * 0.9
+	_arm_r.rotation.x = s * amp * 0.9
+	_arm_l.rotation.z = -0.12
+	_arm_r.rotation.z = 0.12
+	_body.position.y = absf(cos(_phase)) * 0.06 * amp - 0.03 * amp
+
+	# Indicator: hidden when grounded, pointer tracks facing.
+	_ring.visible = _ground_blend < 0.5
+	_ring_pointer.visible = _ring.visible
+
+
+static func _facing_to_yaw(f: Vector2) -> float:
+	# Rotate model forward (-Z) onto world direction (f.x, 0, f.y).
+	return atan2(-f.x, -f.y)
+
+
+static func _mat(color: Color) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = color
+	m.roughness = 0.75
+	return m
+
+
+static func _capsule(radius: float, height: float, mat: Material) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var cm := CapsuleMesh.new()
+	cm.radius = radius
+	cm.height = maxf(height, radius * 2.0)
+	cm.radial_segments = 12
+	cm.rings = 4
+	mi.mesh = cm
+	mi.material_override = mat
+	return mi
+
+
+static func _sphere(radius: float, mat: Material) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = radius
+	sm.height = radius * 2.0
+	sm.radial_segments = 16
+	sm.rings = 8
+	mi.mesh = sm
+	mi.material_override = mat
+	return mi
+
+
+static func _box(size: Vector3, mat: Material) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = size
+	mi.mesh = bm
+	mi.material_override = mat
+	return mi

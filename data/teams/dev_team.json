@@ -1,0 +1,10 @@
+{
+	"_comment": "Fictional development team. Full team data arrives at Milestone 05.",
+	"name": "Development XV",
+	"kit": {
+		"jersey": "#1f4fa3",
+		"shorts": "#f2f2f2",
+		"socks": "#1f4fa3",
+		"indicator": "#ffd23f"
+	}
+}

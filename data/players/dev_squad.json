@@ -1,0 +1,32 @@
+{
+	"_comment": "Fictional development players. Press N in-game to cycle and feel attribute differences.",
+	"players": [
+		{
+			"name": "Tomás Arrieta",
+			"number": 10,
+			"position": "FlyHalf",
+			"attributes": {
+				"speed": 82, "acceleration": 84, "strength": 71, "passing": 91, "kicking": 88,
+				"tackling": 67, "handling": 89, "decision_making": 91, "stamina": 85
+			}
+		},
+		{
+			"name": "Kai Mahoe",
+			"number": 11,
+			"position": "Wing",
+			"attributes": {
+				"speed": 96, "acceleration": 93, "strength": 66, "passing": 70, "kicking": 62,
+				"tackling": 64, "handling": 84, "decision_making": 74, "stamina": 80
+			}
+		},
+		{
+			"name": "Ignacio Ferreyra",
+			"number": 3,
+			"position": "TightheadProp",
+			"attributes": {
+				"speed": 52, "acceleration": 60, "strength": 95, "passing": 55, "kicking": 30,
+				"tackling": 82, "handling": 62, "decision_making": 70, "stamina": 74
+			}
+		}
+	]
+}

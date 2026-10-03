@@ -1,0 +1,9 @@
+# Godot cache / generated
+.godot/
+*.translation
+export_presets.cfg
+/build/
+
+# OS
+.DS_Store
+Thumbs.db
