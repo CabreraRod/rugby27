@@ -76,7 +76,42 @@ Format: decision · why · trade-off.
 5 m / 15 m lines are drawn as continuous dashes (real pitches use short
 marks) — readability over pedantry; revisit for set pieces.
 
+## TD-011 Ball = Jolt RigidBody3D + scripted bounce response
+
+- **Why:** the spec asks for a physical ball, not teleportation. Jolt gives
+  flight, collisions with posts/boards and CCD for free.
+- **How:** sphere collision, friction/bounce 0 in the physics material,
+  rotation locked; `_integrate_forces` detects ground impacts and applies
+  `BounceModel` (seeded RNG) and rolling friction.
+- **Trade-off:** the bounce isn't "true" ellipsoid physics. That's
+  deliberate: controlled randomness is readable and fair, and every
+  parameter is data. Seeded RNG keeps tests (and future replays) deterministic.
+
+## TD-012 Ball does not physically collide with players
+
+- **Why:** physical pushes from kinematic players make the ball erratic and
+  unreadable. Pickups, fumbles and (later) catches/interceptions are
+  gameplay decisions with clear causes.
+- **Trade-off:** no accidental "ball hits shin" physics. It can be faked
+  deliberately later (e.g. a charge-down) as a rule.
+
+## TD-013 Automatic pickup with attribute-based risk
+
+- **Why:** classic console rugby keeps pickups button-free so play flows;
+  risk comes from speed/handling instead of an extra input.
+- **Trade-off:** less player agency over *when* to gather. Revisit with
+  playtesting (a "secure/dive" button is cheap to add).
+
+## TD-014 Sun from the camera side
+
+Broadcast-style front lighting: players read better, and the far stand's
+shadow stays off the pitch (the original back-lit setup put a dark band
+over the near touchline).
+
 ## Open questions / risks
+
+- **Movement playtest still pending.** M03 started at the user's request
+  before the joystick feel test; movement numbers are unchanged since M02.
 
 - **Feel can only be partly verified by tests.** Numbers guarantee
   consistency; "satisfying" needs hands-on playtesting with keyboard and pad.

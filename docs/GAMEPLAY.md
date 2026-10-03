@@ -17,10 +17,12 @@ must happen in the same tick, every time.
 | Toggle camera (side / end-on) | C | Back/View |
 | Debug overlay | F1 | — |
 | Dev: go to ground | G | B / Circle |
-| Dev: cycle role (neutral/carrier/defender) | B | — |
+| Dev: toggle neutral/defender (when not carrying) | B | — |
+| Dev: drop the ball (forward, knock-on style) | F | X / Square |
+| Dev: toss a bouncing ball toward you | T | LB / L1 |
 | Dev: next player profile | N | Y / Triangle |
-| Dev: reset to halfway | R | Start |
-| Dev: hot-reload `movement.json` | F5 | — |
+| Dev: reset player + ball | R | Start |
+| Dev: hot-reload `movement.json` + `ball.json` | F5 | — |
 
 ### Feel model
 
@@ -72,14 +74,63 @@ Changing a target is a design decision — update this table in the same commit.
 
 - States: `LOCOMOTION`, `GROUNDED`, `GETTING_UP` (~1 s total down time).
 - Roles: `NEUTRAL`, `BALL_CARRIER` (−3 % speed, −10 % turn), `DEFENDER`
-  (+8 % turn). Roles are switched by a dev key until the ball exists.
+  (+8 % turn). `BALL_CARRIER` is set automatically by possession.
 - A `TACKLING` state is **not** implemented yet — it arrives with Milestone 07.
+
+## Ball (Milestone 03)
+
+### Possession
+
+- **Pickup is automatic:** run over a loose ball (within 0.85 m, ball below
+  1.3 m) and you try to gather it. No button — accessibility first; a
+  "dive on the ball" action can come later.
+- **Pickup chance** (`PickupModel`):
+  - base 80 % → 99.5 % by handling,
+  - minus up to 40 % (bad hands) / 15 % (good hands) as speed rises from
+    half pace to full sprint,
+  - minus up to 35 % when the ball is moving fast relative to you.
+  - Walking onto a still ball ≈ 92–97 %; full-sprint scoop of a moving ball
+    with average hands ≈ 35–45 %.
+- **Fumble:** the ball is knocked forward (with spread and a pop up), you
+  lose 20 % of your speed, and you can't retry for 0.5 s. Readable cause →
+  effect, no animation lock.
+- **Pickup at pace** costs 12 % of your speed (the stoop).
+- **Going to ground with the ball** places it 0.9 m behind you (the seed of
+  the M08 ruck).
+
+### Ball physics
+
+- Real gravity (9.8 m/s²), light air damping, 0.11 m collision sphere.
+- **Bounce** (`BounceModel`): random restitution 0.38–0.62, horizontal
+  deflection from a peaked distribution scaled by impact speed (max 35°),
+  occasional "sit up", sideways scatter on vertical drops. Soft impacts are
+  tame; hard ones are wild. Never bounces backwards.
+- **Rolling:** 2.4 m/s² until it stops; it settles lying on its side.
+- Hits posts and boards; passes through players (contact = gameplay rules).
+- Oval shape and tumbling are cosmetic, so they can't make outcomes unfair.
+
+### Out of play
+
+- Carrier touching/crossing the touchline → **TOUCH**.
+- Loose ball touching the ground on/over the line → **TOUCH**. A ball in the
+  air above touch is still live until it lands.
+- Touch-in-goal and dead-ball line handled the same way.
+- Dev restart: the ball reappears 5 m infield after 1.6 s. Real restarts
+  (lineout, 22 drop-out, scrum) come with M11/M13/M14.
+
+### Readability
+
+- White ring on the grass under any loose ball (grows with height).
+- "● BALL" in the HUD when you carry; centre notices for TOUCH / FUMBLED.
+- Debug (F1): ball state, carrier, last touch, bounce count/deflection,
+  live pickup chance, pickup reach circle, predicted flight + landing spot.
 
 ## Camera
 
 Side-on broadcast camera (default) and an end-on alternative. It frames the
 space the player runs into (0.55 s look-ahead), follows with a critically
-damped spring and widens slightly at sprint speed.
+damped spring and widens slightly at sprint speed. A nearby loose ball pulls
+the framing up to 35 % toward it.
 
 ## Readability
 

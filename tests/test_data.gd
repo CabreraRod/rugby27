@@ -3,13 +3,22 @@ extends TestSuite
 
 func test_shipped_tuning_matches_code_defaults() -> void:
 	# Tests use code defaults; this keeps them honest about the shipped feel.
-	var defaults := MovementTuning.new()
-	var shipped := MovementTuning.load_default()
-	for p in defaults.get_property_list():
-		if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
-			var a: float = defaults.get(p.name)
-			var b: float = shipped.get(p.name)
-			check(is_equal_approx(a, b), "movement.json '%s' = %s but code default = %s" % [p.name, b, a])
+	_compare(MovementTuning.new(), MovementTuning.load_default(), "movement.json")
+	_compare(BallTuning.new(), BallTuning.load_default(), "ball.json")
+
+
+func test_shipped_tuning_has_every_key() -> void:
+	for pair in [[MovementTuning.new(), MovementTuning.DEFAULT_PATH], [BallTuning.new(), BallTuning.DEFAULT_PATH]]:
+		var data := JsonLoader.load_dict(pair[1])
+		for key in pair[0].property_names().keys():
+			check(data.has(key), "%s is missing '%s'" % [pair[1].get_file(), key])
+
+
+func _compare(defaults: TuningData, shipped: TuningData, label: String) -> void:
+	for key in defaults.property_names().keys():
+		var a: float = defaults.get(key)
+		var b: float = shipped.get(key)
+		check(is_equal_approx(a, b), "%s '%s' = %s but code default = %s" % [label, key, b, a])
 
 
 func test_dev_squad_loads() -> void:

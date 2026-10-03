@@ -2,11 +2,15 @@ class_name DebugOverlay
 extends CanvasLayer
 ## Toggleable developer overlay (F1).
 ##
-## Text panel with the controlled player's simulation state, plus world-space
-## vectors: velocity (green), input intent (yellow), facing (cyan), plant
-## flash (red). Will grow to cover AI targets, lines, ruck state, etc.
+## Text panel with the controlled player's and the ball's state, plus
+## world-space drawing: velocity (green), input intent (yellow), facing
+## (cyan), plant flash (red), pickup reach (white), predicted ball flight
+## until the next ground contact (orange). Will grow to cover AI targets,
+## defensive/offside lines, ruck state, etc.
 
 var player: RugbyPlayer
+var ball: RugbyBall
+var possession: PossessionController
 
 var _label: Label
 var _lines: MeshInstance3D
@@ -71,8 +75,9 @@ func _process(_delta: float) -> void:
 		"stamina   %.1f  fatigue x%.2f  locked %s" % [player.stamina.value, player.stamina.fatigue_multiplier(player.tuning), str(player.stamina.sprint_locked)],
 		"",
 		"attrs     spd %d  acc %d  sta %d  str %d" % [a.rating("speed"), a.rating("acceleration"), a.rating("stamina"), a.rating("strength")],
-		"in field  %s" % str(FieldDimensions.in_field_of_play(Vector2(player.global_position.x, player.global_position.z))),
-	])
+		"zone      %s" % FieldDimensions.Zone.keys()[FieldDimensions.zone_of(Vector2(player.global_position.x, player.global_position.z))],
+		"",
+	] + _ball_lines())
 	_draw_vectors(m)
 
 
@@ -88,7 +93,57 @@ func _draw_vectors(m: LocomotionModel) -> void:
 	_line(origin + Vector3(0, 1.6, 0), origin + Vector3(0, 1.6, 0) + Vector3(f.x, 0, f.y) * 1.2, Color.CYAN)
 	if m.last_planted:
 		_line(origin, origin + Vector3(0, 2.4, 0), Color.RED)
+	if ball:
+		_circle(Vector3(origin.x, 0.05, origin.z), ball.tuning.pickup_reach, Color(1, 1, 1, 0.6))
+		if ball.is_loose():
+			_draw_prediction()
 	_mesh.surface_end()
+
+
+func _ball_lines() -> Array:
+	if ball == null:
+		return []
+	var v := ball.ball_velocity()
+	var who := ball.carrier.profile.short_label() if ball.carrier else "-"
+	var last := ball.last_touched_by.profile.short_label() if ball.last_touched_by else "-"
+	var lines := [
+		"ball      %s   carrier %s" % [RugbyBall.State.keys()[ball.state], who],
+		"ball pos  (%.1f, %.2f, %.1f)  speed %.1f m/s" % [ball.global_position.x, ball.global_position.y, ball.global_position.z, v.length()],
+		"ball      on_ground %s  bounces %d  last defl %.0f°" % [str(ball.on_ground), ball.bounce_count, rad_to_deg(ball.last_bounce_deflection)],
+		"last touch %s" % last,
+	]
+	if possession and ball.is_loose():
+		lines.append("pickup    chance now %.0f%%" % (possession.pickup_chance(player) * 100.0))
+	return lines
+
+
+## Ballistic prediction (gravity + air damping) until the ball reaches the ground.
+func _draw_prediction() -> void:
+	var p := ball.get_global_transform_interpolated().origin
+	var v := ball.ball_velocity()
+	var g := float(ProjectSettings.get_setting("physics/3d/default_gravity", 9.8))
+	var dt := 1.0 / 30.0
+	var col := Color("#ff9f1c")
+	for i in 120:
+		var nv := v + Vector3(0, -g * dt, 0)
+		nv *= maxf(0.0, 1.0 - ball.tuning.air_damp * dt)
+		var np := p + nv * dt
+		if np.y <= ball.tuning.radius:
+			np.y = ball.tuning.radius
+			_line(p, np, col)
+			_circle(Vector3(np.x, 0.06, np.z), 0.35, col)
+			return
+		_line(p, np, col)
+		p = np
+		v = nv
+
+
+func _circle(c: Vector3, r: float, col: Color) -> void:
+	var seg := 24
+	for i in seg:
+		var a0 := TAU * i / seg
+		var a1 := TAU * (i + 1) / seg
+		_line(c + Vector3(cos(a0), 0, sin(a0)) * r, c + Vector3(cos(a1), 0, sin(a1)) * r, col)
 
 
 func _line(a: Vector3, b: Vector3, c: Color) -> void:

@@ -1,11 +1,12 @@
 class_name MatchHud
 extends CanvasLayer
-## Minimal in-match HUD: controlled player, stamina bar, speed.
+## Minimal in-match HUD: controlled player, stamina, speed, possession, notices.
 ## Controls hint fades out after a few seconds.
 
 const HINT_TIME := 9.0
 
 var player: RugbyPlayer
+var ball: RugbyBall
 
 var _name_label: Label
 var _speed_label: Label
@@ -13,6 +14,10 @@ var _stamina_bar: ProgressBar
 var _stamina_fill: StyleBoxFlat
 var _hint: Label
 var _hint_timer := HINT_TIME
+var _ball_tag: Label
+var _notice: Label
+var _notice_timer := 0.0
+var _notice_duration := 1.0
 
 
 func _ready() -> void:
@@ -22,7 +27,7 @@ func _ready() -> void:
 	panel.anchor_top = 1.0
 	panel.anchor_bottom = 1.0
 	panel.offset_left = 24
-	panel.offset_top = -96
+	panel.offset_top = -118
 	panel.offset_bottom = -24
 	panel.offset_right = 344
 	var bg := StyleBoxFlat.new()
@@ -50,6 +55,12 @@ func _ready() -> void:
 	_speed_label.add_theme_color_override("font_color", Color(0.75, 0.8, 0.85))
 	row.add_child(_speed_label)
 
+	_ball_tag = Label.new()
+	_ball_tag.text = "● BALL"
+	_ball_tag.add_theme_font_size_override("font_size", 14)
+	_ball_tag.add_theme_color_override("font_color", Color("#ffd23f"))
+	v.add_child(_ball_tag)
+
 	_stamina_bar = ProgressBar.new()
 	_stamina_bar.show_percentage = false
 	_stamina_bar.custom_minimum_size = Vector2(0, 12)
@@ -66,7 +77,7 @@ func _ready() -> void:
 	v.add_child(_stamina_bar)
 
 	_hint = Label.new()
-	_hint.text = "Move: WASD / Left stick    Sprint: Shift / RT    Camera: C    Debug: F1\nDev: G ground   B role   N next player   R reset   F5 reload tuning"
+	_hint.text = "Move: WASD / Left stick    Sprint: Shift / RT    Camera: C    Debug: F1\nBall: run over it to pick up    Dev: F drop   T toss ball   G ground   B role   N next player   R reset   F5 reload"
 	_hint.anchor_left = 0.5
 	_hint.anchor_right = 0.5
 	_hint.offset_left = -400
@@ -78,6 +89,29 @@ func _ready() -> void:
 	_hint.add_theme_constant_override("shadow_offset_x", 1)
 	_hint.add_theme_constant_override("shadow_offset_y", 1)
 	add_child(_hint)
+
+	_notice = Label.new()
+	_notice.anchor_left = 0.5
+	_notice.anchor_right = 0.5
+	_notice.anchor_top = 0.28
+	_notice.offset_left = -400
+	_notice.offset_right = 400
+	_notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_notice.add_theme_font_size_override("font_size", 46)
+	_notice.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
+	_notice.add_theme_constant_override("shadow_offset_x", 2)
+	_notice.add_theme_constant_override("shadow_offset_y", 2)
+	_notice.visible = false
+	add_child(_notice)
+
+
+## Short centre-screen message (TOUCH, FUMBLED, ...). Never pauses play.
+func notify(text: String, color: Color = Color.WHITE, duration: float = 1.2) -> void:
+	_notice.text = text
+	_notice.add_theme_color_override("font_color", color)
+	_notice_duration = maxf(duration, 0.2)
+	_notice_timer = _notice_duration
+	_notice.visible = true
 
 
 func _process(delta: float) -> void:
@@ -94,6 +128,13 @@ func _process(delta: float) -> void:
 	elif st.value < player.tuning.fatigue_threshold:
 		col = Color("#f5a524")
 	_stamina_fill.bg_color = col
+
+	# Alpha (not visibility) so the panel layout never jumps.
+	_ball_tag.modulate.a = 1.0 if ball != null and ball.carrier == player else 0.0
+	if _notice_timer > 0.0:
+		_notice_timer -= delta
+		_notice.modulate.a = clampf(_notice_timer / 0.3, 0.0, 1.0)
+		_notice.visible = _notice_timer > 0.0
 
 	if _hint_timer > 0.0:
 		_hint_timer -= delta

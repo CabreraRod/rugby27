@@ -1,0 +1,47 @@
+{
+	"_comment": "Ball + possession tuning. Units: metres, seconds, degrees, kg. F5 in-game hot-reloads.",
+
+	"radius": 0.11,
+	"mass": 0.44,
+	"air_damp": 0.03,
+
+	"restitution": 0.5,
+	"restitution_var": 0.12,
+	"bounce_min_vy": 1.2,
+	"max_deflect_deg": 35.0,
+	"wild_impact_speed": 8.0,
+	"horiz_keep_min": 0.55,
+	"horiz_keep_max": 0.95,
+	"drop_scatter": 0.18,
+	"sit_up_chance": 0.15,
+	"sit_up_vy_mult": 1.5,
+	"sit_up_keep_mult": 0.5,
+	"wall_restitution": 0.45,
+
+	"roll_decel": 2.4,
+	"rest_speed": 0.15,
+
+	"carry_side": 0.26,
+	"carry_forward": 0.12,
+	"carry_height": 1.08,
+
+	"pickup_reach": 0.85,
+	"pickup_max_height": 1.3,
+	"pickup_base_min": 0.8,
+	"pickup_base_max": 0.995,
+	"pickup_speed_pen_good_hands": 0.15,
+	"pickup_speed_pen_bad_hands": 0.4,
+	"pickup_ball_speed_free": 2.0,
+	"pickup_ball_speed_full": 10.0,
+	"pickup_ball_speed_pen": 0.35,
+	"pickup_retry_cooldown": 0.5,
+	"pickup_stumble": 0.88,
+
+	"fumble_stumble": 0.8,
+	"fumble_kick_base": 1.5,
+	"fumble_kick_per_speed": 0.35,
+	"fumble_kick_up": 1.2,
+	"fumble_spread_deg": 30.0,
+
+	"dead_ball_restart_delay": 1.6
+}

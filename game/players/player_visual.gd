@@ -31,6 +31,7 @@ var _yaw := 0.0
 var _pitch := 0.0
 var _roll := 0.0
 var _ground_blend := 0.0
+var _carry_blend := 0.0
 
 
 func _ready() -> void:
@@ -167,6 +168,11 @@ func _process(delta: float) -> void:
 	_arm_r.rotation.x = s * amp * 0.9
 	_arm_l.rotation.z = -0.12
 	_arm_r.rotation.z = 0.12
+	# Ball carrier: right arm tucked around the ball (ball sits on the right).
+	var carry := 1.0 if player.role == RugbyPlayer.Role.BALL_CARRIER else 0.0
+	_carry_blend = lerpf(_carry_blend, carry, 1.0 - exp(-14.0 * delta))
+	_arm_r.rotation.x = lerpf(_arm_r.rotation.x, 0.75, _carry_blend)
+	_arm_r.rotation.z = lerpf(0.12, -0.25, _carry_blend)
 	_body.position.y = absf(cos(_phase)) * 0.06 * amp - 0.03 * amp
 
 	# Indicator: hidden when grounded, pointer tracks facing.

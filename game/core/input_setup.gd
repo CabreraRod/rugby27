@@ -29,6 +29,8 @@ func _enter_tree() -> void:
 	_add("dev_cycle_role", [KEY_B], [], [], 0.5)
 	_add("dev_next_profile", [KEY_N], [JOY_BUTTON_Y], [], 0.5)
 	_add("dev_reload_tuning", [KEY_F5], [], [], 0.5)
+	_add("dev_drop_ball", [KEY_F], [JOY_BUTTON_X], [], 0.5)
+	_add("dev_toss_ball", [KEY_T], [JOY_BUTTON_LEFT_SHOULDER], [], 0.5)
 
 
 func _add(action: StringName, keys: Array, buttons: Array, axes: Array, deadzone: float) -> void:

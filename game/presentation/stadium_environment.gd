@@ -46,8 +46,9 @@ static func _build_world_environment(parent: Node3D) -> void:
 static func _build_sun(parent: Node3D) -> void:
 	var sun := DirectionalLight3D.new()
 	sun.name = "Sun"
-	# Afternoon sun, slightly behind the broadcast camera so faces read well.
-	sun.rotation_degrees = Vector3(-48.0, 28.0, 0.0)
+	# Afternoon sun from the broadcast-camera side (+Z), high enough that the
+	# far stand's shadow stays off the pitch and players are front-lit.
+	sun.rotation_degrees = Vector3(-58.0, -152.0, 0.0)
 	sun.light_energy = 1.25
 	sun.light_color = Color(1.0, 0.97, 0.92)
 	sun.shadow_enabled = true
@@ -76,7 +77,17 @@ static func _build_stands(parent: Node3D) -> void:
 	var hw := FieldDimensions.HALF_WIDTH
 	var dead := FieldDimensions.dead_ball_x()
 
-	# Perimeter boards (plain alternating panels).
+	# Perimeter boards (plain alternating panels) — solid, one strip per side.
+	for side: float in [-1.0, 1.0]:
+		var body := StaticBody3D.new()
+		body.collision_layer = PhysicsLayers.WORLD
+		var col := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		shape.size = Vector3(dead * 2.0 + 8.0, 0.9, 0.3)
+		col.shape = shape
+		col.position = Vector3(0.0, 0.45, side * (hw + 5.0))
+		body.add_child(col)
+		root.add_child(body)
 	for side: float in [-1.0, 1.0]:
 		var i := 0
 		var x := -dead - 4.0

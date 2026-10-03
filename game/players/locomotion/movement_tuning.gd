@@ -1,5 +1,5 @@
 class_name MovementTuning
-extends RefCounted
+extends TuningData
 ## Global movement-feel parameters, loaded from data/tuning/movement.json.
 ##
 ## Defaults below mirror the JSON so the game still runs (and tests stay
@@ -78,17 +78,3 @@ static func load_from(path: String) -> MovementTuning:
 	t.apply_dict(JsonLoader.load_dict(path))
 	return t
 
-
-## Applies known keys; warns about unknown keys so typos are caught early.
-func apply_dict(d: Dictionary) -> void:
-	var known := {}
-	for p in get_property_list():
-		if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
-			known[p.name] = true
-	for key in d.keys():
-		if String(key).begins_with("_"):
-			continue
-		if known.has(key):
-			set(key, float(d[key]))
-		else:
-			push_warning("MovementTuning: unknown key '%s'" % key)

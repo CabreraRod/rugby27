@@ -67,6 +67,8 @@ func _ready() -> void:
 		setup(PlayerProfile.from_dict({}), MovementTuning.new())
 	floor_snap_length = 0.3
 	floor_stop_on_slope = true
+	collision_layer = PhysicsLayers.PLAYERS
+	collision_mask = PhysicsLayers.WORLD | PhysicsLayers.PLAYERS
 	var col := CollisionShape3D.new()
 	col.name = "Collision"
 	var cap := CapsuleShape3D.new()
@@ -161,6 +163,15 @@ func go_to_ground() -> void:
 		return
 	_set_state(State.GROUNDED)
 	_state_timer = tuning.ground_time
+
+
+## Momentary loss of speed (pickup at pace, fumble). keep: fraction kept.
+func apply_stumble(keep: float) -> void:
+	planar_velocity *= clampf(keep, 0.0, 1.0)
+
+
+func is_controllable() -> bool:
+	return state == State.LOCOMOTION
 
 
 func set_role(r: Role) -> void:

@@ -31,6 +31,35 @@ static func line_22_x() -> float:
 	return HALF_LENGTH - LINE_22_FROM_TRY
 
 
+## Where a ground point lies. Lines belong to the zone beyond them
+## (touchline = touch, try line = in-goal, dead-ball line = dead).
+enum Zone {
+	FIELD_OF_PLAY,
+	IN_GOAL,
+	TOUCH,
+	TOUCH_IN_GOAL,
+	DEAD,
+}
+
+
+## `margin` grows the object toward the lines (e.g. ball radius: touching the
+## line counts as crossing it).
+static func zone_of(p: Vector2, margin: float = 0.0) -> Zone:
+	var ax := absf(p.x) + margin
+	var az := absf(p.y) + margin
+	if ax >= dead_ball_x():
+		return Zone.DEAD
+	if az >= HALF_WIDTH:
+		return Zone.TOUCH_IN_GOAL if ax >= HALF_LENGTH else Zone.TOUCH
+	if ax >= HALF_LENGTH:
+		return Zone.IN_GOAL
+	return Zone.FIELD_OF_PLAY
+
+
+static func is_out(zone: Zone) -> bool:
+	return zone == Zone.TOUCH or zone == Zone.TOUCH_IN_GOAL or zone == Zone.DEAD
+
+
 ## True if a ground point is inside the field of play (touchlines/try lines excluded).
 static func in_field_of_play(p: Vector2) -> bool:
 	return absf(p.x) < HALF_LENGTH and absf(p.y) < HALF_WIDTH

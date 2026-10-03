@@ -26,7 +26,12 @@ enum Mode {
 ## Focus is clamped to this rectangle (pitch + in-goals + margin).
 @export var focus_limit := Vector2(64.0, 33.0)
 
+## How far the focus leans toward a nearby loose ball (0..1).
+@export var loose_ball_bias := 0.35
+@export var loose_ball_range := 25.0
+
 var target: RugbyPlayer
+var ball: RugbyBall
 var mode: Mode = Mode.SIDE
 
 var _focus := Vector3.ZERO
@@ -63,6 +68,12 @@ func _process(delta: float) -> void:
 	var v := Vector3(target.planar_velocity.x, 0.0, target.planar_velocity.y)
 	var lead := (v * lead_time).limit_length(max_lead)
 	var desired := tpos + lead
+	# Don't lock to the player: a nearby loose ball pulls the framing toward it.
+	if ball and ball.is_loose():
+		var bpos := ball.get_global_transform_interpolated().origin
+		var d := Vector2(bpos.x - tpos.x, bpos.z - tpos.z).length()
+		var w := loose_ball_bias * (1.0 - clampf(d / loose_ball_range, 0.0, 1.0))
+		desired = desired.lerp(Vector3(bpos.x, 0.0, bpos.z), w)
 	desired.x = clampf(desired.x, -focus_limit.x, focus_limit.x)
 	desired.z = clampf(desired.z, -focus_limit.y, focus_limit.y)
 	desired.y = 0.0

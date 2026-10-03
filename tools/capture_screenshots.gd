@@ -1,5 +1,5 @@
 extends SceneTree
-## Dev tool: runs the match scene with a scripted run and saves screenshots.
+## Dev tool: runs the match scene with a scripted sequence and saves screenshots.
 ##   godot --path . --script res://tools/capture_screenshots.gd -- <out_dir>
 ## Needs a real (or virtual, e.g. xvfb-run) display; not --headless.
 
@@ -18,34 +18,41 @@ func _run() -> void:
 	var scene: Node3D = load("res://game/match/match.tscn").instantiate()
 	root.add_child(scene)
 	var player: RugbyPlayer = scene.get_node("Player")
+	var ball: RugbyBall = scene.get_node("Ball")
 	scene.get_node("HumanController").player = null
 	await _frames(20)
-	await _shot("01_kickoff_idle")
+	await _shot("01_kickoff_ball")
 
-	# Sprint toward the right try line, cut infield, then plant and reverse.
-	await _drive(player, Vector2.RIGHT, true, 70)
-	await _shot("02_sprinting")
-	await _drive(player, Vector2(1, -1), true, 18)
-	await _shot("03_cutting")
-	await _drive(player, Vector2.LEFT, true, 8)
-	await _shot("04_planting")
+	# Jog onto the ball, pick it up and sprint with it.
+	await _drive(player, Vector2.RIGHT, false, 70)
+	await _drive(player, Vector2(1, -0.4), true, 50)
+	await _shot("02_carrying")
 
-	scene.debug_overlay.toggle()
-	await _drive(player, Vector2(0.3, 1), false, 30)
-	await _shot("05_debug_overlay")
-	scene.debug_overlay.toggle()
-
-	player.reset_to(Vector3(44, 0, 8))
-	scene.camera.toggle_mode()
+	# Dev toss: ball bounces toward the player; debug shows predicted flight.
+	scene.possession.drop(player)
+	await _drive(player, Vector2.ZERO, false, 60)
+	player.reset_to(Vector3(-10, 0, 5))
 	scene.camera.snap()
-	await _drive(player, Vector2.RIGHT, false, 60)
-	await _shot("06_end_on_posts")
+	scene.toss_ball_to_player()
+	scene.debug_overlay.toggle()
+	await _drive(player, Vector2.ZERO, false, 14)
+	await _shot("03_toss_debug_prediction")
+	scene.debug_overlay.toggle()
+	await _drive(player, Vector2.ZERO, false, 30)
+	await _shot("04_loose_ball_bounce")
+
+	# Carry it over the touchline.
+	player.reset_to(Vector3(5, 0, 26), Vector2(0, 1))
+	ball.spawn_loose(Vector3(5, 0.11, 26.4), Vector3.ZERO)
+	scene.camera.snap()
+	await _drive(player, Vector2(0.2, 1), true, 125)
+	await _shot("05_touch")
 	quit(0)
 
 
 func _drive(p: RugbyPlayer, dir: Vector2, sprint: bool, frames: int) -> void:
 	for i in frames:
-		p.set_intent(dir, 1.0, sprint)
+		p.set_intent(dir, 1.0 if dir != Vector2.ZERO else 0.0, sprint)
 		await physics_frame
 	await process_frame
 
