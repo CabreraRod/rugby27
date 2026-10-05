@@ -1,0 +1,20 @@
+{
+	"_comment": "Fictional development opponents (AI). Attack toward -X. lineup pos [x, z]; their left is +Z.",
+	"name": "Opposition XV",
+	"squad": "res://data/players/dev_opp_squad.json",
+	"attack_dir": -1,
+	"kit": {
+		"jersey": "#b3262d",
+		"shorts": "#1b1b1b",
+		"socks": "#b3262d",
+		"indicator": "#ffffff"
+	},
+	"lineup": [
+		{ "number": 9,  "pos": [6.0, 3.0] },
+		{ "number": 10, "pos": [6.0, -7.0] },
+		{ "number": 12, "pos": [6.0, -14.0] },
+		{ "number": 13, "pos": [6.0, -21.0] },
+		{ "number": 11, "pos": [6.0, 10.0] },
+		{ "number": 15, "pos": [20.0, -4.0] }
+	]
+}

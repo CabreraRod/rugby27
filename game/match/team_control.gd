@@ -1,38 +1,60 @@
 class_name TeamControl
 extends Node
-## Each physics tick (before players move): gives every player of the human
-## team an intent — the controlled one from the HumanController, the others
-## from SupportRunner — and turns pass button presses into PassingSystem calls.
+## Drives one team every physics tick (before players move).
 ##
-## Control follows the ball: it moves to the intended receiver the moment a
-## pass is released (so you can run onto it), and to anyone in the team who
-## gathers the ball.
+## Phase (from this team's point of view):
+##   ATTACK — we have the ball (or our pass is in the air): controlled
+##            player from the human (or AttackBrain for the AI team), the
+##            rest run support lines (SupportRunner).
+##   DEFEND — they have it: the human keeps their defender, the rest form
+##            the DefensiveLine.
+##   LOOSE  — nobody has it: nearest non-controlled player chases it, the
+##            rest hold support slots around the ball.
+##
+## Human team only: pass buttons pass when you carry and switch player when
+## you defend; control follows the ball on our side and jumps to the
+## nearest player to the ball on a turnover. A team with human == null is
+## fully AI.
 
 signal controlled_changed(old: RugbyPlayer, new: RugbyPlayer)
+
+enum Phase { ATTACK, DEFEND, LOOSE }
 
 ## Tests switch this off to drive players directly.
 var active := true
 var team: Team
+var opponents: Team
 var ball: RugbyBall
 var passing: PassingSystem
+var possession: PossessionController
 var human: HumanController
 var support: SupportTuning
+var defence: DefenceTuning
 var controlled: RugbyPlayer
-## Debug: current slot of every runner.
+var phase: Phase = Phase.LOOSE
+
+## Debug views.
 var slots := {}
+var assignments: Array[DefensiveLine.Assignment] = []
+var chaser: RugbyPlayer
+
 ## True while a pass charge was started by a button press (only those are
 ## released by letting go; charges started from code keep their own timing).
 var _input_charge := false
+var _held_time := 0.0
 
 const PASS_ACTIONS := ["pass_left", "pass_right"]
 
 
-func setup(p_team: Team, p_ball: RugbyBall, p_passing: PassingSystem, p_human: HumanController, p_support: SupportTuning) -> void:
+func setup(p_team: Team, p_opponents: Team, p_ball: RugbyBall, p_passing: PassingSystem, p_possession: PossessionController, p_human: HumanController, p_support: SupportTuning, p_defence: DefenceTuning) -> void:
 	team = p_team
+	opponents = p_opponents
 	ball = p_ball
 	passing = p_passing
+	possession = p_possession
 	human = p_human
 	support = p_support
+	defence = p_defence
 	ball.carrier_changed.connect(_on_carrier_changed)
 	passing.pass_thrown.connect(_on_pass_thrown)
 
@@ -41,8 +63,12 @@ func _ready() -> void:
 	process_physics_priority = -10
 
 
+func is_human() -> bool:
+	return human != null
+
+
 func set_controlled(p: RugbyPlayer) -> void:
-	if p == controlled:
+	if p == controlled or not is_human():
 		return
 	var old := controlled
 	if old:
@@ -53,14 +79,38 @@ func set_controlled(p: RugbyPlayer) -> void:
 	controlled_changed.emit(old, p)
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if not active or team == null:
 		return
-	_drive_players()
-	_read_pass_input()
+	phase = _phase()
+	if ball.carrier and team.has(ball.carrier):
+		_held_time += delta
+	else:
+		_held_time = 0.0
+	match phase:
+		Phase.ATTACK:
+			_drive_attack()
+		Phase.DEFEND:
+			_drive_defence()
+		Phase.LOOSE:
+			_drive_loose()
+	if is_human():
+		_read_buttons()
 
 
-func _drive_players() -> void:
+func _phase() -> Phase:
+	if passing.in_flight and passing.flight_passer:
+		return Phase.ATTACK if team.has(passing.flight_passer) else Phase.DEFEND
+	if ball.carrier:
+		return Phase.ATTACK if team.has(ball.carrier) else Phase.DEFEND
+	return Phase.LOOSE
+
+
+# --- Attack ----------------------------------------------------------------------
+
+func _drive_attack() -> void:
+	assignments.clear()
+	chaser = null
 	var anchor := _anchor()
 	var anchor_pos: Vector2 = anchor[0]
 	var anchor_vel: Vector2 = anchor[1]
@@ -73,18 +123,33 @@ func _drive_players() -> void:
 	slots = SupportRunner.assign_slots(anchor_pos, team, runners, support)
 
 	for p in team.players:
+		if p.role == RugbyPlayer.Role.DEFENDER:
+			p.set_role(RugbyPlayer.Role.NEUTRAL)
 		var it: SupportRunner.Intent
 		if p == controlled:
-			it = human.read_intent() if human else SupportRunner.Intent.new()
+			it = human.read_intent()
 			if passing.is_receiver_in_flight(p):
 				it = SupportRunner.receiver_assist(it, p.planar_velocity, p.stats.jog_top, support)
 		elif p == anchor_player:
-			it = SupportRunner.hold_course(p.planar_velocity, p.stats.jog_top)
+			if p == ball.carrier and not is_human():
+				it = _ai_carry(p)
+			else:
+				it = SupportRunner.hold_course(p.planar_velocity, p.stats.jog_top)
 		elif slots.has(p):
 			it = SupportRunner.steer(p.planar_position(), slots[p], anchor_vel, p.stats.jog_top, support)
 		else:
 			it = SupportRunner.Intent.new()
-		p.set_intent(it.dir, it.mag, it.sprint, it.speed)
+		_apply(p, it)
+
+
+func _ai_carry(p: RugbyPlayer) -> SupportRunner.Intent:
+	var defenders: Array[RugbyPlayer] = []
+	if opponents:
+		defenders = opponents.players
+	var side := AttackBrain.choose_pass(p, passing, defenders, _held_time, defence)
+	if side >= 0 and not passing.charging:
+		passing.throw(p, side, false)
+	return AttackBrain.carry(p, defenders, team.attack(), defence)
 
 
 ## [position, velocity, player-or-null] the support line forms around.
@@ -98,9 +163,91 @@ func _anchor() -> Array:
 	return [Vector2(b.x, b.z), Vector2.ZERO, null]
 
 
-func _read_pass_input() -> void:
-	if controlled == null or ball.carrier != controlled:
+# --- Defence ---------------------------------------------------------------------
+
+func _drive_defence() -> void:
+	slots.clear()
+	chaser = null
+	var ai_defenders: Array[RugbyPlayer] = []
+	for p in team.players:
+		if p != controlled:
+			ai_defenders.append(p)
+	var attack := opponents.attack() if opponents else -team.attack()
+	var carrier: RugbyPlayer = null
+	if ball.carrier and opponents.has(ball.carrier):
+		carrier = ball.carrier
+	elif passing.in_flight and passing.flight_receiver and opponents.has(passing.flight_receiver):
+		carrier = passing.flight_receiver   # mark the receiver as the new carrier
+	var b := ball.global_position
+	assignments = DefensiveLine.assign(ai_defenders, controlled, opponents.players, carrier, Vector2(b.x, b.z), attack, defence)
+	for a in assignments:
+		var it := SupportRunner.steer_to(a.defender.planar_position(), a.target, a.feed, a.defender.stats.jog_top, defence.gain, defence.settle_dist)
+		_apply(a.defender, it)
+		a.defender.set_role(RugbyPlayer.Role.DEFENDER)
+	if controlled:
+		_apply(controlled, human.read_intent())
+		controlled.set_role(RugbyPlayer.Role.DEFENDER)
+
+
+# --- Loose ball --------------------------------------------------------------------
+
+func _drive_loose() -> void:
+	assignments.clear()
+	var b := Vector2(ball.global_position.x, ball.global_position.z)
+	# Nearest non-controlled player chases the ball.
+	chaser = null
+	var best_d := INF
+	for p in team.players:
+		if p == controlled or not p.is_controllable():
+			continue
+		var d := p.planar_position().distance_to(b)
+		if d < best_d:
+			best_d = d
+			chaser = p
+	var runners: Array[RugbyPlayer] = []
+	for p in team.players:
+		if p != controlled and p != chaser:
+			runners.append(p)
+	slots = SupportRunner.assign_slots(b, team, runners, support)
+	for p in team.players:
+		if p.role == RugbyPlayer.Role.DEFENDER:
+			p.set_role(RugbyPlayer.Role.NEUTRAL)
+		var it: SupportRunner.Intent
+		if p == controlled:
+			it = human.read_intent()
+		elif p == chaser:
+			var bv := ball.ball_velocity()
+			it = SupportRunner.steer_to(p.planar_position(), b, Vector2(bv.x, bv.z), p.stats.jog_top, 3.0, 0.0)
+			it.sprint = true
+			it.mag = 1.0
+		elif slots.has(p):
+			it = SupportRunner.steer(p.planar_position(), slots[p], Vector2.ZERO, p.stats.jog_top, support)
+		else:
+			it = SupportRunner.Intent.new()
+		_apply(p, it)
+
+
+func _apply(p: RugbyPlayer, it: SupportRunner.Intent) -> void:
+	p.set_intent(it.dir, it.mag, it.sprint, it.speed)
+
+
+# --- Human buttons -------------------------------------------------------------------
+
+func _read_buttons() -> void:
+	if controlled == null:
 		return
+	if ball.carrier == controlled:
+		_read_pass_input()
+		return
+	_input_charge = false
+	# Not carrying: the pass buttons switch to the teammate nearest the ball.
+	for i in PASS_ACTIONS.size():
+		if Input.is_action_just_pressed(PASS_ACTIONS[i]):
+			switch_to_nearest_ball(true)
+			return
+
+
+func _read_pass_input() -> void:
 	for i in PASS_ACTIONS.size():
 		if Input.is_action_just_pressed(PASS_ACTIONS[i]) and not passing.charging:
 			passing.begin(controlled, i)
@@ -113,11 +260,34 @@ func _read_pass_input() -> void:
 			passing.release()
 
 
+## Gives control to the teammate nearest the ball (optionally never the
+## current one, so repeated presses cycle outward).
+func switch_to_nearest_ball(exclude_current: bool) -> void:
+	var b := Vector2(ball.global_position.x, ball.global_position.z)
+	var best: RugbyPlayer = null
+	var best_d := INF
+	for p in team.players:
+		if exclude_current and p == controlled:
+			continue
+		var d := p.planar_position().distance_to(b)
+		if d < best_d:
+			best_d = d
+			best = p
+	if best:
+		set_controlled(best)
+
+
 func _on_pass_thrown(_passer: RugbyPlayer, receiver: RugbyPlayer, _forward: bool) -> void:
 	if receiver and team.has(receiver):
 		set_controlled(receiver)
 
 
 func _on_carrier_changed(_old: RugbyPlayer, new: RugbyPlayer) -> void:
-	if new and team.has(new):
+	if new == null:
+		return
+	if team.has(new):
 		set_controlled(new)
+	elif is_human() and opponents and opponents.has(new):
+		# Turnover (interception, they gathered a loose ball): defend with
+		# whoever is closest to the ball.
+		switch_to_nearest_ball(false)

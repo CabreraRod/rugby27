@@ -29,6 +29,12 @@ enum Mode {
 ## How far the focus leans toward a nearby loose ball (0..1).
 @export var loose_ball_bias := 0.35
 @export var loose_ball_range := 25.0
+## When the controlled player isn't carrying (defending, waiting for a
+## pass), the focus sits this far toward the ball so both stay in frame.
+@export var ball_focus_weight := 0.45
+@export var ball_focus_range := 30.0
+## Extra zoom-out (fraction of offset) when ball and player are far apart.
+@export var spread_zoom := 0.35
 
 var target: RugbyPlayer
 var ball: RugbyBall
@@ -68,19 +74,25 @@ func _process(delta: float) -> void:
 	var v := Vector3(target.planar_velocity.x, 0.0, target.planar_velocity.y)
 	var lead := (v * lead_time).limit_length(max_lead)
 	var desired := tpos + lead
-	# Don't lock to the player: a nearby loose ball pulls the framing toward it.
-	if ball and ball.is_loose():
+	# Don't lock to the player: frame the ball too.
+	var spread := 0.0
+	if ball and ball.carrier != target:
 		var bpos := ball.get_global_transform_interpolated().origin
 		var d := Vector2(bpos.x - tpos.x, bpos.z - tpos.z).length()
-		var w := loose_ball_bias * (1.0 - clampf(d / loose_ball_range, 0.0, 1.0))
+		var w := 0.0
+		if ball.is_loose():
+			w = loose_ball_bias * (1.0 - clampf(d / loose_ball_range, 0.0, 1.0))
+		if ball.carrier != null or not ball.is_loose():
+			w = ball_focus_weight * (1.0 - clampf(d / ball_focus_range, 0.0, 1.0) * 0.5)
 		desired = desired.lerp(Vector3(bpos.x, 0.0, bpos.z), w)
+		spread = clampf(d / ball_focus_range, 0.0, 1.0)
 	desired.x = clampf(desired.x, -focus_limit.x, focus_limit.x)
 	desired.z = clampf(desired.z, -focus_limit.y, focus_limit.y)
 	desired.y = 0.0
 
 	_focus = _smooth_damp(_focus, desired, delta)
 	var speed_t := clampf(v.length() / 9.5, 0.0, 1.0)
-	_zoom = lerpf(_zoom, speed_t, 1.0 - exp(-1.5 * delta))
+	_zoom = lerpf(_zoom, maxf(speed_t, spread * spread_zoom / maxf(speed_zoom, 0.01)), 1.0 - exp(-1.5 * delta))
 	_offset = _offset.lerp(_mode_offset(), 1.0 - exp(-3.0 * delta))
 	_apply()
 

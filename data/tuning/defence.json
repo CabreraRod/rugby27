@@ -1,0 +1,20 @@
+{
+	"_comment": "Placeholder defence (M05; M06 AI builds on it). Metres / seconds.",
+	"gap_near": 3.0,
+	"gap_far": 6.0,
+	"gap_falloff": 15.0,
+	"inside_offset": 0.7,
+	"gain": 1.9,
+	"settle_dist": 0.35,
+	"pursue_lead": 0.3,
+	"shadow_gap": 0.5,
+	"human_marks_carrier_dist": 4.0,
+	"mark_retreat": 0.5,
+	"pursuer_retreat": 0.3,
+	"sweeper_depth": 18.0,
+	"press_dist": 2.6,
+	"press_lateral": 1.6,
+	"ai_pass_cooldown": 0.7,
+	"avoid_dist": 4.0,
+	"avoid_weight": 0.45
+}

@@ -62,6 +62,7 @@ func _physics_process(delta: float) -> void:
 			if charge_time >= tuning.max_hold_time:
 				release()
 	if in_flight:
+		possession.pass_age += delta
 		_flight_timer -= delta
 		if _flight_timer <= 0.0:
 			_end_flight()
@@ -149,6 +150,7 @@ func throw_to(passer: RugbyPlayer, receiver: RugbyPlayer, side: int, long: bool)
 
 	possession.set_cooldown(passer, tuning.passer_cooldown)
 	possession.intended_receiver = receiver
+	possession.pass_age = 0.0
 	passer.play_action(&"pass_left" if side == PassTargeting.LEFT else &"pass_right", 0.3)
 	ball.release(v, &"pass")
 	# Set after release(): release() clears any previous flight via carrier_changed.

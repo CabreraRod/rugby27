@@ -42,7 +42,7 @@ static func ballistic(p0: Vector3, aim: Vector3, time: float, air_damp: float, g
 ## not from dice).
 static func error_offset(rng: RandomNumberGenerator, sd: float, attack: Vector2, side_vec: Vector2) -> Vector3:
 	var along := _gauss(rng) * sd
-	var back := -absf(_gauss(rng)) * sd * 0.6
+	var back := -absf(_gauss(rng)) * sd * 0.4
 	var up := _gauss(rng) * sd * 0.35
 	var h := side_vec * along + attack * back
 	return Vector3(h.x, up, h.y)

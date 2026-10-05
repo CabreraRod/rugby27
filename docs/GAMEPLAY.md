@@ -16,6 +16,7 @@ must happen in the same tick, every time.
 | Sprint | Shift | RT / R2 |
 | Pass to the attacker's left (tap quick, hold long) | Q | LB / L1 |
 | Pass to the attacker's right (tap quick, hold long) | E | RB / R1 |
+| Defending: switch to the teammate nearest the ball | Q or E | LB or RB |
 | Toggle camera (side / end-on) | C | Back/View |
 | Debug overlay | F1 | — |
 | Toggle single-player sandbox / team mode | F2 | D-pad up |
@@ -173,9 +174,10 @@ Changing a target is a design decision — update this table in the same commit.
 - Judged at the ball's **closest approach** to the receiver (or when it's
   within 0.45 m), inside a reach of 1.0 m (1.25 m for the intended receiver)
   between 0.35 m and 2.4 m high.
-- Chance: 78 % → 99 % by handling, minus up to 20 % for very fast balls
+- Chance: 82 % → 99 % by handling, minus up to 20 % for very fast balls
   (> 18 m/s relative — a normal pass to a runner crosses at 15–21 m/s), up
-  to 20 % for balls behind the body, up to 15 % outside chest height.
+  to 20 % for balls more than 0.4 m behind the body, up to 15 % outside
+  chest height.
 - Drop: ~70 % knocked forward (**KNOCK-ON**), ~30 % backwards (**DROPPED**).
   The ball is loose; rulings come with M11.
 
@@ -186,10 +188,11 @@ Changing a target is a design decision — update this table in the same commit.
   over the ground is legal. Detected at release; **FORWARD PASS** notice.
   The scrum/penalty consequence comes with M11.
 
-### Measured (tools/pass_soak.gd, 24 seeded moves)
+### Measured (tools/pass_soak.gd, 48 seeded moves, no defenders)
 
-97 % of passes caught by the intended receiver, 2 drops in 63 passes (both
-arriving ~0.5 m behind the body), 0 forward passes, 22/24 complete moves.
+92 % of passes caught by the intended receiver (mostly long skip passes
+dropped by the 12), 0 forward passes. An earlier "97 %" came from
+correlated test seeds (neighbouring PCG seeds); soaks now use hashed seeds.
 
 ### Receiver dummies (placeholder for M06)
 
@@ -198,12 +201,39 @@ pass receiver, or loose ball): first receiver 2.5 m deep and 7 m wide, each
 further one 1 m deeper and 7 m wider, kept 2 m inside touch. They run with
 the carrier and reform after every pass. No decisions.
 
+## Opponents and defence (Milestone 05)
+
+- The human always controls the same team. Opponents are AI.
+- **Phases** per team: ATTACK (we have it or our pass is in the air),
+  DEFEND (they have it), LOOSE (nobody: the nearest player of each team
+  chases it, the rest hold shape around it).
+- **Turnover:** control jumps to our player nearest the ball. On defence
+  LB/RB switch to the teammate nearest the ball (repeat to cycle).
+- **Placeholder defence** (one structure, not 6 ball-chasers):
+  - one pursuer on the carrier (unless the human is already on him),
+  - the rest pair with attackers in lateral order (man-for-man drift),
+    on the mark's inside shoulder, 3 m in front near the ball, 6 m wide,
+  - spares sweep 18 m behind the ball,
+  - **line speed:** they copy their mark's sideways movement but not its
+    forward progress, so the line comes up to meet the attack; the
+    pursuer gives at most 30 % of the carrier's pace,
+  - never behind their own try line.
+- **Placeholder AI carrier:** runs at the line, veers from defenders
+  within 4 m, passes to the side with more room when a defender is within
+  2.6 m in front (after holding the ball at least 0.7 s).
+- **Interceptions:** a defender reaching for the other team's pass uses
+  15 % of the normal catch chance with a 0.8 m reach, not in the first
+  0.15 s of flight; a miss knocks it down 8 % of the time, otherwise the
+  ball flies on. Notices: INTERCEPTED / TURNOVER / TURNOVER WON.
+- Measurements: see ROADMAP (tools/defence_soak.gd).
+
 ## Camera
 
 Side-on broadcast camera (default) and an end-on alternative. It frames the
 space the player runs into (0.55 s look-ahead), follows with a critically
-damped spring and widens slightly at sprint speed. A nearby loose ball pulls
-the framing up to 35 % toward it.
+damped spring and widens slightly at sprint speed. When you aren't carrying
+(defending, waiting for a pass) the focus sits up to 45 % toward the ball
+and the camera pulls back as ball and player get further apart.
 
 ## Readability
 

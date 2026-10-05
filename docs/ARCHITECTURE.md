@@ -1,6 +1,6 @@
 # Rugby 27 — Architecture
 
-Status: Milestone 04 (field, camera, ball + possession, a six-player backline with receiver dummies, passing and catching).
+Status: Milestone 05 (6 v 6: human team vs AI team, placeholder support/defence/carrier AI, passing, interceptions, turnovers).
 
 ## Principles
 
@@ -33,7 +33,7 @@ Defined in `game/field/field_dimensions.gd` and used everywhere:
 match/        composition: bootstrap, Team, TeamControl (later MatchDirector)
   ├─ ui/, debug/, camera/, presentation/   read-only views
   ├─ passing/  PassingSystem → targeting / solver / catch cores
-  ├─ ai/       SupportRunner (receiver dummies; M06 AI goes here)
+  ├─ ai/       SupportRunner, DefensiveLine, AttackBrain (placeholders; M06 AI)
   ├─ ball/     PossessionController → RugbyBall → bounce/pickup cores
   ├─ players/  controllers → RugbyPlayer → locomotion cores
   ├─ field/    pitch geometry, zones, builder
@@ -75,8 +75,11 @@ data/          JSON (tuning, players, teams)
 | `game/passing/passing_system.gd` | Charge/release, throw, pass-in-flight tracking, forward detection. |
 | `game/ai/support_tuning.gd` | Support line parameters (`data/tuning/support.json`). |
 | `game/ai/support_runner.gd` | Receiver dummies: staggered slots around the anchor, steering, receiver pace assist. |
+| `game/ai/defence_tuning.gd` | Defence + AI-carrier parameters (`data/tuning/defence.json`). |
+| `game/ai/defensive_line.gd` | Pure defensive assignment: pursuer, man-for-man drift, sweepers, line speed, own-line clamp. |
+| `game/ai/attack_brain.gd` | Placeholder AI carrier: run, veer, pass under pressure. |
 | `game/match/team.gd` | Players + attack direction; attacker-relative left/right. |
-| `game/match/team_control.gd` | Per-tick intents for the team, pass button handling, control follows the ball. |
+| `game/match/team_control.gd` | One per team (human or AI): phase (attack/defend/loose), per-tick intents, pass/switch buttons, control follows the ball and turnovers. |
 | `game/presentation/pass_markers.gd` | Floating Q·LB / RB·E labels over the current pass targets (yellow = charging, red = forward risk). |
 | `game/ball/ball_visual.gd` | Oval mesh, cosmetic tumble, ground marker. |
 | `ui/hud/match_hud.gd` | Player label, stamina bar, speed, possession tag, centre notices. |
@@ -84,12 +87,14 @@ data/          JSON (tuning, players, teams)
 | `game/match/match_bootstrap.gd` | Builds the scene (team mode or single-player sandbox), wires systems, dev hotkeys. |
 | `tests/*` | Headless test runner + suites. |
 | `tools/capture_screenshots.gd` | Scripted run that saves screenshots (visual regression aid). |
-| `tools/pass_soak.gd` | 24 seeded backline moves; prints pass completion / drops / forward passes. |
+| `tools/pass_soak.gd` | 48 seeded backline moves (no defenders; `-- --opponents` to add them); completion / drops / forward passes. |
+| `tools/defence_soak.gd` | 24+24 seeded phases (we attack / they attack): pressure, line breaks, turnovers, completion, metres (`-- --verbose` lists failures). |
 
 ## Per-tick order (60 Hz physics)
 
-1. `TeamControl` (priority −10): intents for every player (human / support
-   runner / receiver assist) → `set_intent()`; pass buttons → `PassingSystem`.
+1. `TeamControl` ×2 (priority −10): each team's phase and intents (human /
+   support runner / defensive line / AI carrier / loose-ball chaser) →
+   `set_intent()`; human pass/switch buttons → `PassingSystem`.
 2. `PassingSystem` (−9): charge timer, auto-release, throw (ball released
    this tick), pass-in-flight timeout.
 3. `RugbyPlayer._physics_process` (0): stamina → stats → `LocomotionModel.step` →
@@ -119,10 +124,7 @@ Empty placeholder folders are deliberately **not** created now.
 - **Rules (M11):** `RugbyBall.released(by, velocity, reason)` and
   `went_dead(zone, point)` are the events the referee will consume
   (knock-on = forward release by hands; touch → lineout).
-- **Multiple players (M05):** a second `Team` (attack_dir −1) with its own
-  `TeamControl`-like driver; manual player switching on defence;
-  `BroadcastCamera.target` becomes a focus solver (ball + nearby players).
-  Interceptions fall out of `PossessionController` (the "teammates let it
-  through" rule only applies to the passer's team).
+- **Tackling (M07):** `DefensiveLine` already names the pursuer; contact
+  between pursuer and carrier is where the tackle system takes over.
 - **AI (M06):** replaces `SupportRunner` behind the same `set_intent()` API
   and can pass through `PassingSystem.throw_to()`.

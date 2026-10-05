@@ -7,6 +7,7 @@ const HINT_TIME := 9.0
 
 var player: RugbyPlayer
 var ball: RugbyBall
+var team_control: TeamControl
 
 var _name_label: Label
 var _speed_label: Label
@@ -18,6 +19,7 @@ var _ball_tag: Label
 var _notice: Label
 var _notice_timer := 0.0
 var _notice_duration := 1.0
+var _phase_label: Label
 
 
 func _ready() -> void:
@@ -55,11 +57,17 @@ func _ready() -> void:
 	_speed_label.add_theme_color_override("font_color", Color(0.75, 0.8, 0.85))
 	row.add_child(_speed_label)
 
+	var tags := HBoxContainer.new()
+	v.add_child(tags)
+	_phase_label = Label.new()
+	_phase_label.add_theme_font_size_override("font_size", 14)
+	_phase_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tags.add_child(_phase_label)
 	_ball_tag = Label.new()
 	_ball_tag.text = "● BALL"
 	_ball_tag.add_theme_font_size_override("font_size", 14)
 	_ball_tag.add_theme_color_override("font_color", Color("#ffd23f"))
-	v.add_child(_ball_tag)
+	tags.add_child(_ball_tag)
 
 	_stamina_bar = ProgressBar.new()
 	_stamina_bar.show_percentage = false
@@ -77,7 +85,7 @@ func _ready() -> void:
 	v.add_child(_stamina_bar)
 
 	_hint = Label.new()
-	_hint.text = "Move: WASD / Left stick    Sprint: Shift / RT    Pass left/right: Q / E  ·  LB / RB  (hold = long)\nCamera: C   Debug: F1   Sandbox: F2   Dev: F drop  T toss  G ground  N profile  R reset  F5 reload"
+	_hint.text = "Move: WASD / Left stick    Sprint: Shift / RT    Pass left/right: Q / E  ·  LB / RB  (hold = long; defending = switch player)\nCamera: C   Debug: F1   Sandbox: F2   Dev: F drop  T toss  G ground  N profile  R reset  F5 reload"
 	_hint.anchor_left = 0.5
 	_hint.anchor_right = 0.5
 	_hint.offset_left = -500
@@ -129,6 +137,17 @@ func _process(delta: float) -> void:
 		col = Color("#f5a524")
 	_stamina_fill.bg_color = col
 
+	if team_control:
+		match team_control.phase:
+			TeamControl.Phase.ATTACK:
+				_phase_label.text = "ATTACK"
+				_phase_label.add_theme_color_override("font_color", Color("#7cff6b"))
+			TeamControl.Phase.DEFEND:
+				_phase_label.text = "DEFENCE  ·  LB/RB switch"
+				_phase_label.add_theme_color_override("font_color", Color("#ff8a8f"))
+			_:
+				_phase_label.text = "LOOSE BALL"
+				_phase_label.add_theme_color_override("font_color", Color("#ffd23f"))
 	# Alpha (not visibility) so the panel layout never jumps.
 	_ball_tag.modulate.a = 1.0 if ball != null and ball.carrier == player else 0.0
 	if _notice_timer > 0.0:

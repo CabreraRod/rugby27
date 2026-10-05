@@ -20,6 +20,8 @@ var tuning: BallTuning
 var pass_tuning: PassingTuning
 ## Receiver of the pass in flight (set by PassingSystem): larger catch reach.
 var intended_receiver: RugbyPlayer
+## How the ball was last gained: &"pickup" or &"catch".
+var last_gain: StringName = &""
 var players: Array[RugbyPlayer] = []
 var rng := RandomNumberGenerator.new()
 ## For debug: last computed chance for each player id.
@@ -60,7 +62,11 @@ func _physics_process(delta: float) -> void:
 			# intended receiver (opponents may intercept once they exist).
 			if intended_receiver and p != intended_receiver and p.team and p.team == intended_receiver.team:
 				continue
-			var reach := pass_tuning.catch_reach_intended if p == intended_receiver else pass_tuning.catch_reach
+			var intercepting := _is_interception(p)
+			# Nobody intercepts a ball still leaving the passer's hands.
+			if intercepting and pass_age < pass_tuning.intercept_min_time:
+				continue
+			var reach := pass_tuning.catch_reach_intended if p == intended_receiver else (pass_tuning.intercept_reach if intercepting else pass_tuning.catch_reach)
 			if not CatchModel.in_reach(p.global_position, ball.global_position, reach, pass_tuning):
 				continue
 			# Hands meet the ball at its closest approach, not at the edge of reach.
@@ -93,6 +99,7 @@ func attempt_pickup(p: RugbyPlayer) -> bool:
 	if rng.randf() < c:
 		if p.current_speed() > p.stats.jog_top:
 			p.apply_stumble(tuning.pickup_stumble)
+		last_gain = &"pickup"
 		ball.attach(p)
 		pickup.emit(p, c)
 		return true
@@ -114,10 +121,33 @@ func catch_chance(p: RugbyPlayer) -> float:
 	return CatchModel.chance(p.profile.attributes.norm("handling"), rel, behind, height, pass_tuning)
 
 
+## A defender reaching for the other team's pass.
+func _is_interception(p: RugbyPlayer) -> bool:
+	return intended_receiver != null and p.team != null and intended_receiver.team != null and p.team != intended_receiver.team
+
+
+## Seconds since the current pass left the hands (set by PassingSystem).
+var pass_age := 0.0
+
+
 func attempt_catch(p: RugbyPlayer) -> bool:
 	var c := catch_chance(p)
+	var intercepting := _is_interception(p)
+	if intercepting:
+		c *= pass_tuning.intercept_mult
 	last_chance[p.get_instance_id()] = c
+	if intercepting and rng.randf() >= c:
+		# Missed interception: usually the ball goes past untouched; sometimes
+		# a fingertip knocks it down. Either way this defender is done.
+		_cooldown[p.get_instance_id()] = pass_tuning.catch_retry_cooldown
+		if rng.randf() < pass_tuning.intercept_knockdown:
+			var attack := p.team.attack()
+			var v := CatchModel.knock_velocity(ball.ball_velocity(), attack, rng, pass_tuning)
+			ball.knock(v, p, &"knock_on" if CatchModel.is_knock_on(v, attack) else &"deflected")
+			catch_failed.emit(p, c, CatchModel.is_knock_on(v, attack))
+		return false
 	if rng.randf() < c:
+		last_gain = &"catch"
 		ball.attach(p)
 		p.play_action(&"catch", 0.25)
 		caught.emit(p, c)

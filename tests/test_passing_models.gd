@@ -127,7 +127,8 @@ func test_catch_easy_pass_sticks() -> void:
 func test_catch_hard_cases_are_riskier() -> void:
 	var base := CatchModel.chance(0.8, 10.0, 0.0, 1.2, t)
 	check(CatchModel.chance(0.8, 28.0, 0.0, 1.2, t) < base - 0.15, "rocket pass is harder")
-	check(CatchModel.chance(0.8, 10.0, 0.8, 1.2, t) < base - 0.15, "ball behind the body is harder")
+	check(CatchModel.chance(0.8, 10.0, 1.2, 1.2, t) < base - 0.15, "ball well behind the body is harder")
+	check(CatchModel.chance(0.8, 10.0, 0.35, 1.2, t) == base, "half a metre behind is still a normal take")
 	check(CatchModel.chance(0.8, 10.0, 0.0, 0.4, t) < base - 0.1, "bootlaces is harder")
 	check(CatchModel.chance(0.8, 10.0, 0.0, 2.35, t) < base - 0.1, "overhead is harder")
 

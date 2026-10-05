@@ -52,11 +52,17 @@ static func slot_position(anchor: Vector2, team: Team, side: float, k: int, t: S
 
 ## Steering toward a slot that moves with the anchor.
 static func steer(pos: Vector2, slot: Vector2, anchor_vel: Vector2, jog_top: float, t: SupportTuning) -> Intent:
+	return steer_to(pos, slot, anchor_vel, jog_top, t.gain, t.settle_dist)
+
+
+## Generic: reach a moving target. feed = the target's own velocity
+## (feed-forward), gain = how hard to close the remaining gap (1/s).
+static func steer_to(pos: Vector2, target: Vector2, feed: Vector2, jog_top: float, gain: float, settle: float) -> Intent:
 	var it := Intent.new()
-	var to := slot - pos
-	if to.length() < t.settle_dist and anchor_vel.length() < 0.3:
+	var to := target - pos
+	if to.length() < settle and feed.length() < 0.3:
 		return it
-	var desired := anchor_vel + to * t.gain
+	var desired := feed + to * gain
 	var speed := desired.length()
 	if speed < 0.05:
 		return it

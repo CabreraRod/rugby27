@@ -13,6 +13,7 @@ var possession: PossessionController
 func before_each() -> void:
 	scene = load("res://game/match/match.tscn").instantiate()
 	scene.solo = false
+	scene.with_opponents = false   # M04 passing behaviour, no defenders
 	tree.root.add_child(scene)
 	team = scene.team
 	ball = scene.ball

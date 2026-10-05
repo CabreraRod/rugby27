@@ -7,7 +7,9 @@ extends CanvasLayer
 ## (cyan), plant flash (red), pickup reach (white), predicted ball flight
 ## until the next ground contact (orange), support slots (blue) and the
 ## pass in flight: aim point and the release line across the pitch (green =
-## legal, red = forward). Will grow to cover AI targets, defensive/offside
+## legal, red = forward), defensive assignments (red = pursuer on the
+## carrier, pink = marking, purple = sweeper; faint line to the mark) and
+## loose-ball chasers (yellow). Will grow to cover AI targets, defensive/offside
 ## lines, ruck state, etc.
 
 var player: RugbyPlayer
@@ -15,6 +17,7 @@ var ball: RugbyBall
 var possession: PossessionController
 var passing: PassingSystem
 var team_control: TeamControl
+var opp_control: TeamControl
 
 var _label: Label
 var _lines: MeshInstance3D
@@ -113,6 +116,21 @@ func _draw_passing() -> void:
 			var sp := Vector3(slot.x, 0.06, slot.y)
 			_circle(sp, 0.4, Color("#4ea8ff"))
 			_line(Vector3(rp.x, 0.06, rp.z), sp, Color(0.3, 0.65, 1.0, 0.5))
+	for c in [team_control, opp_control]:
+		if c == null:
+			continue
+		for asg in c.assignments:
+			var dp: Vector3 = asg.defender.get_global_transform_interpolated().origin
+			var tp := Vector3(asg.target.x, 0.06, asg.target.y)
+			var col := Color("#ff5a5f") if asg.role == &"pursue" else (Color("#c77dff") if asg.role == &"sweep" else Color("#ff9f9f"))
+			_circle(tp, 0.35, col)
+			_line(Vector3(dp.x, 0.06, dp.z), tp, col)
+			if asg.mark:
+				var mp: Vector3 = asg.mark.get_global_transform_interpolated().origin
+				_line(Vector3(dp.x, 1.0, dp.z), Vector3(mp.x, 1.0, mp.z), Color(1, 0.4, 0.4, 0.35))
+		if c.chaser:
+			var cp: Vector3 = c.chaser.get_global_transform_interpolated().origin
+			_line(Vector3(cp.x, 0.1, cp.z), Vector3(ball.global_position.x, 0.1, ball.global_position.z), Color("#ffd23f"))
 	if passing and passing.in_flight:
 		var a := passing.flight_aim
 		_circle(Vector3(a.x, 0.07, a.z), 0.55, Color("#ffd23f"))
@@ -136,6 +154,8 @@ func _ball_lines() -> Array:
 	]
 	if possession and ball.is_loose():
 		lines.append("pickup    chance now %.0f%%" % (possession.pickup_chance(player) * 100.0))
+	if team_control:
+		lines.append("phase     %s" % TeamControl.Phase.keys()[team_control.phase])
 	if passing:
 		lines.append("")
 		if passing.charging:

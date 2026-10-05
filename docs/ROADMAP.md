@@ -9,8 +9,8 @@ stop for review. No skipping ahead.
 | 02 | One controllable player | ✅ (joystick playtest pending) | Movement passes feel targets and feels good in hand |
 | 03 | Ball + possession | ✅ | Ball is a physics object; pick up, carry, drop, bounce, out of bounds |
 | 04 | Passing | ✅ | A→B→C→D chain without fighting controls; forward pass detection |
-| 05 | Multiple players | ⏭ next | Second team, switching on defence, camera focus solver |
-| 06 | Basic AI | | AI controllers use `set_intent()`; support lines, simple defence |
+| 05 | Multiple players | ✅ | Second team, switching on defence, camera focus solver |
+| 06 | Basic AI | ⏭ next | Real attacking/defensive decisions replacing the placeholders |
 | 07 | Tackling | | Tackle outcome from speed/angle/strength/timing; break tackles |
 | 08 | Rucks | | Tackle → ground → ruck → ball available, contest, turnover |
 | 09 | Kicking | | Punt, grubber, chip, high, touch-finder; kick chase |
@@ -51,23 +51,42 @@ soak: 97 % completion, 0 forward passes.
 Not done (by design): rulings for knock-on/forward pass (M11), opponents
 and interceptions (M05), real support AI (M06), manual player switching.
 
-## Milestone 05 — Multiple players (next)
+## Milestone 05 — Multiple players ✅
+
+Delivered: 6 v 6 from data (second squad + team file, attack −X); the
+human always controls the same team; placeholder defence that moves as a
+structure (pursuer on the carrier, man-for-man drift on the inside
+shoulder, sweeper, line speed, never behind its own try line); placeholder
+AI carrier that runs, veers and passes under pressure; loose-ball chasing;
+interceptions (harder than a normal catch, not at the release, occasional
+knock-downs); turnovers flip phases and move control to our player nearest
+the ball; LB/RB switch player on defence; camera frames ball + controlled
+player; HUD phase tag; debug view of marks. 96 automated tests.
+
+Measured (tools/defence_soak.gd, 24 runs each, no tackling yet):
+- We attack: carrier pressured 74 % of the time, 0 line breaks, 66/70
+  passes completed, 1 turnover.
+- They attack: 0 line breaks, 38/44 passes completed, 3 turnovers.
+Passing without defenders (tools/pass_soak.gd, 48 runs): 92 %, mostly
+long skip passes dropped by the 12.
+
+Known placeholder behaviour: without tackles the pursuer stops a
+carrier who runs straight into him (body contact). Go round him; M07
+replaces this with tackles.
+
+## Milestone 06 — Basic AI (next)
 
 Scope proposal:
-- A second team from data (attack_dir −1, other kit), 6 v 6 to start.
-- Opponents controlled by simple placeholder defenders: a flat line that
-  holds the gain line and drifts with the ball (no tackling yet — M07).
-- Interceptions: opponents can catch passes (the existing catch rules).
-- Manual switching when your team doesn't have the ball (nearest to ball /
-  cycle), and the "possession changes team" flow.
-- Camera focus solver: frames ball + carrier + nearest defenders instead of
-  only the controlled player.
-- Debug: defensive line, which player each defender marks.
+- Attacking AI with decisions: run lines into space (not just slots),
+  pass/carry choice from space and defenders, depth, inside/outside
+  support, and a simple kick decision placeholder until M09.
+- Defensive AI decisions on top of the M05 structure: rush vs. drift
+  choice by situation, inside cover, retreat when broken, pursuit angles.
+- Team-style parameters plumbed in (tempo, width) so M15 can tune them.
+- Soaks: AI vs AI matches measuring metres, breaks, turnovers, pass
+  completion — the numbers must move when the AI improves.
 
-Decided (2026-10-05): **the human always controls the same team** and
-switches players within it on turnovers.
-
-From the Rugby 08 research (docs/RESEARCH_RUGBY08.md): the most common
-"too easy" complaint was weak AI defence giving fast backs space. M05's
-placeholder defence should already drift and track speed, and a soak
-should measure line breaks.
+Open question: M06 before M07 (tackling) means the AI can't yet tackle,
+and attacking decisions depend heavily on contact. Option: swap M06 and
+M07 so the AI is built against real contact. **Recommendation: swap**
+(tackling first). Decision for the user.

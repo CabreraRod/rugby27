@@ -22,47 +22,41 @@ func _run() -> void:
 	var passing: PassingSystem = scene.passing
 	var ball: RugbyBall = scene.ball
 	await _frames(20)
-	await _shot("01_lineup_markers")
+	await _shot("01_six_v_six")
 
-	# Run forward with the line, then 9 -> 10 -> 12 -> 13.
+	# Attack: the line comes up to meet us.
 	_stick(Vector2.RIGHT)
-	await _ticks(60)
-	await _shot("02_running_line")
+	await _ticks(70)
+	await _shot("02_defence_comes_up")
 	scene.debug_overlay.toggle()
 	passing.throw(ball.carrier, PassTargeting.LEFT, false)
-	await _ticks(14)
-	await _shot("03_pass_in_flight_debug")
-	scene.debug_overlay.toggle()
-	await _wait_held()
-	await _ticks(20)
-	passing.begin(ball.carrier, PassTargeting.LEFT)
-	await _ticks(12)
-	await _shot("04_charging_long")
-	passing.release()
-	await _ticks(8)
-	await _shot("05_catch_pose")
-	await _wait_held()
-	await _ticks(20)
-	# Nobody further out: the 13 gives it back inside to the 12.
-	passing.throw(ball.carrier, PassTargeting.RIGHT, false)
-	await _wait_held()
 	await _ticks(10)
-	await _shot("06_back_inside")
+	await _shot("03_debug_marks_and_pass")
+	scene.debug_overlay.toggle()
+
+	# Force a turnover: hand the ball to their 10 near our line.
+	await _ticks(40)
+	var o10: RugbyPlayer = null
+	for p in scene.opp.players:
+		if p.profile.number == 10:
+			o10 = p
+	scene.possession.clear_cooldowns()
+	scene.possession.last_gain = &"pickup"   # staged turnover, not an interception
+	ball.attach(o10)
+	_stick(Vector2.ZERO)
+	await _ticks(45)
+	await _shot("04_turnover_we_defend")
+	scene.debug_overlay.toggle()
+	await _ticks(30)
+	await _shot("05_defence_debug")
 	quit(0)
 
 
 func _stick(dir: Vector2) -> void:
 	var it := SupportRunner.Intent.new()
 	it.dir = dir
-	it.mag = 1.0
+	it.mag = 1.0 if dir != Vector2.ZERO else 0.0
 	scene.human.scripted = it
-
-
-func _wait_held() -> void:
-	for i in 150:
-		await physics_frame
-		if scene.ball.state == RugbyBall.State.HELD:
-			return
 
 
 func _ticks(n: int) -> void:

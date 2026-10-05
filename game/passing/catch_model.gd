@@ -33,7 +33,8 @@ static func chance(handling: float, rel_speed: float, behind: float, height: flo
 	var p := lerpf(t.catch_base_min, t.catch_base_max, handling)
 	var sp := clampf((rel_speed - t.catch_speed_free) / maxf(t.catch_speed_full - t.catch_speed_free, 0.01), 0.0, 1.0)
 	p -= t.catch_speed_pen * sp
-	p -= t.catch_behind_pen * clampf((behind - 0.2) / 0.6, 0.0, 1.0)
+	# Half a metre behind is still a normal take; it gets hard beyond that.
+	p -= t.catch_behind_pen * clampf((behind - 0.4) / 0.8, 0.0, 1.0)
 	var off := 0.0
 	if height < t.catch_comfort_low:
 		off = (t.catch_comfort_low - height) / maxf(t.catch_comfort_low - t.catch_min_height, 0.01)

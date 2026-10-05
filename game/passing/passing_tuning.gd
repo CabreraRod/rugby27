@@ -53,7 +53,7 @@ var catch_reach_intended := 1.25
 var catch_sure_dist := 0.45
 var catch_min_height := 0.35
 var catch_max_height := 2.4
-var catch_base_min := 0.78
+var catch_base_min := 0.82
 var catch_base_max := 0.99
 ## Relative ball speed a normal pass arrives at (lateral pass speed + run) is ~15-21 m/s.
 var catch_speed_free := 18.0
@@ -63,6 +63,15 @@ var catch_behind_pen := 0.2
 var catch_height_pen := 0.15
 var catch_comfort_low := 0.8
 var catch_comfort_high := 1.7
+
+# Interceptions (a defender in the passing lane).
+var intercept_reach := 0.8
+## Interception chance = normal catch chance × this.
+var intercept_mult := 0.15
+## A missed interception knocks the ball down this often (else it flies on).
+var intercept_knockdown := 0.08
+## No interceptions in the first part of the flight (ball leaving the hands).
+var intercept_min_time := 0.15
 
 # Dropped catch.
 var knock_back_chance := 0.3

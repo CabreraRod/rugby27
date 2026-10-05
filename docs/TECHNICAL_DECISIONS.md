@@ -148,6 +148,34 @@ over the near touchline).
 - **Trade-off:** on the side camera "left" means the far side of the
   screen, which needs a moment to learn. Playtest; a setting is cheap.
 
+## TD-020 One TeamControl per team, human or AI
+
+- **Why:** both teams need the same phase logic (attack/defend/loose); the
+  only difference is who drives the controlled player.
+- **Trade-off:** TeamControl grows; M06 should split decision-making out
+  into per-role brains so it stays a dispatcher.
+
+## TD-021 Placeholder defence as one structure with line speed
+
+- **Why:** research — Rugby 08's AI gave fast backs space. Copying a mark's
+  full velocity made the line backpedal forever (measured: it retreated
+  past its own dead-ball line); copying only the sideways part brings it
+  up to meet the attack.
+- **Trade-off:** without tackles the pursuer blocks the carrier bodily.
+
+## TD-022 Interceptions are rare by design
+
+- **Why:** with an advancing line, defenders are always near passing lanes.
+  Same catch odds as receivers produced ~14 % turnovers per pass;
+  interceptions now use 15 % of the catch chance, never at release.
+- **Trade-off:** reading a pass and stepping in is less rewarding; M06/M07
+  may add a deliberate "jump the pass" action with risk.
+
+## TD-023 Soaks use hashed seeds
+
+Neighbouring PCG seeds produced correlated first draws (5/12 runs hitting
+an 8 % roll). All soaks now seed with `hash("…-%d" % run)`.
+
 ## Open questions / risks
 
 - **Movement playtest still pending.** M03/M04 started at the user's

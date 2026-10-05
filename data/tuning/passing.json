@@ -32,7 +32,7 @@
 	"catch_sure_dist": 0.45,
 	"catch_min_height": 0.35,
 	"catch_max_height": 2.4,
-	"catch_base_min": 0.78,
+	"catch_base_min": 0.82,
 	"catch_base_max": 0.99,
 	"catch_speed_free": 18.0,
 	"catch_speed_full": 28.0,
@@ -41,6 +41,11 @@
 	"catch_height_pen": 0.15,
 	"catch_comfort_low": 0.8,
 	"catch_comfort_high": 1.7,
+
+	"intercept_reach": 0.8,
+	"intercept_mult": 0.15,
+	"intercept_knockdown": 0.08,
+	"intercept_min_time": 0.15,
 
 	"knock_back_chance": 0.3,
 	"knock_speed": 2.0,

@@ -3,7 +3,7 @@ extends SceneTree
 ## sprinting). Prints completion stats. Usage:
 ##   godot --headless --path . --script res://tools/pass_soak.gd
 
-const RUNS := 24
+const RUNS := 48
 
 func _initialize() -> void:
 	_run.call_deferred()
@@ -17,9 +17,10 @@ func _run() -> void:
 	for run in RUNS:
 		var scene: Node3D = load("res://game/match/match.tscn").instantiate()
 		scene.solo = false
+		scene.with_opponents = OS.get_cmdline_user_args().has("--opponents")
 		root.add_child(scene)
-		scene.passing.rng.seed = 1000 + run
-		scene.possession.rng.seed = 2000 + run
+		scene.passing.rng.seed = hash("pass-%d" % run)  # well-spread seeds: PCG seeds next to each other correlate early draws
+		scene.possession.rng.seed = hash("poss-%d" % run)
 		var it := SupportRunner.Intent.new()
 		it.dir = Vector2.RIGHT
 		it.mag = 1.0

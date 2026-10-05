@@ -4,7 +4,8 @@ extends Node3D
 ##
 ## Two modes:
 ##   * Team (default): the lineup from data/teams/dev_team.json, ball in the
-##     scrum-half's hands, passing live.
+##     scrum-half's hands, passing live, against the AI opponents from
+##     data/teams/dev_opponents.json (set with_opponents = false to drop them).
 ##   * Sandbox (F2 / D-pad up): one player and a loose ball — for movement
 ##     tuning and pickup practice. F2 reloads the scene in the other mode.
 ##
@@ -12,6 +13,7 @@ extends Node3D
 
 const SQUAD_PATH := "res://data/players/dev_squad.json"
 const TEAM_PATH := "res://data/teams/dev_team.json"
+const OPP_PATH := "res://data/teams/dev_opponents.json"
 const SANDBOX_SPOT := Vector3(0.0, 0.0, 0.0)
 const SANDBOX_BALL_SPOT := Vector3(6.0, 0.11, 0.0)
 const SANDBOX_NUMBER := 10
@@ -21,27 +23,34 @@ static var sandbox_mode := false
 
 ## Set before adding to the tree to force a mode (tests). Defaults to sandbox_mode.
 var solo := sandbox_mode
+## Team mode only: spawn the AI opponents (tests of M04 behaviour turn it off).
+var with_opponents := true
 
 var tuning: MovementTuning
 var ball_tuning: BallTuning
 var pass_tuning: PassingTuning
 var support_tuning: SupportTuning
+var defence_tuning: DefenceTuning
 var squad: Array[PlayerProfile] = []
 var team := Team.new()
 var team_data := {}
-## Start positions, parallel to team.players.
-var lineup_spots: Array[Vector3] = []
+var opp := Team.new()
+var opp_data := {}
+## Start positions per player.
+var lineup_spots := {}
 
 var ball: RugbyBall
 var possession: PossessionController
 var passing: PassingSystem
 var team_control: TeamControl
+var opp_control: TeamControl
 var camera: BroadcastCamera
 var human: HumanController
 var hud: MatchHud
 var debug_overlay: DebugOverlay
 
 var _profile_index := 0
+var _possession_team: Team
 var _restart_timer: SceneTreeTimer
 
 
@@ -50,18 +59,25 @@ func _ready() -> void:
 	ball_tuning = BallTuning.load_default()
 	pass_tuning = PassingTuning.load_default()
 	support_tuning = SupportTuning.load_default()
+	defence_tuning = DefenceTuning.load_default()
 	squad = PlayerProfile.load_squad(SQUAD_PATH)
 	if squad.is_empty():
 		squad.append(PlayerProfile.from_dict({"name": "Fallback", "number": 1}))
-	team_data = JsonLoader.load_dict(TEAM_PATH)
-	team.name = String(team_data.get("name", "Team"))
-	team.attack_dir = signf(float(team_data.get("attack_dir", 1.0)))
-	if team.attack_dir == 0.0:
-		team.attack_dir = 1.0
+	team_data = _load_team(team, TEAM_PATH)
 
 	StadiumEnvironment.build(self)
 	FieldBuilder.build(self)
-	_spawn_players()
+	if solo:
+		_spawn_team(team, team_data, squad, [{"number": SANDBOX_NUMBER, "pos": [SANDBOX_SPOT.x, SANDBOX_SPOT.z]}], "Player")
+	else:
+		_spawn_team(team, team_data, squad, team_data.get("lineup", []), "P")
+		if with_opponents:
+			opp_data = _load_team(opp, OPP_PATH)
+			var opp_squad := PlayerProfile.load_squad(String(opp_data.get("squad", SQUAD_PATH)))
+			_spawn_team(opp, opp_data, opp_squad, opp_data.get("lineup", []), "O")
+	var everyone: Array[RugbyPlayer] = []
+	everyone.append_array(team.players)
+	everyone.append_array(opp.players)
 
 	ball = RugbyBall.new()
 	ball.name = "Ball"
@@ -75,7 +91,7 @@ func _ready() -> void:
 
 	possession = PossessionController.new()
 	possession.name = "Possession"
-	possession.setup(ball, ball_tuning, team.players)
+	possession.setup(ball, ball_tuning, everyone)
 	possession.pass_tuning = pass_tuning
 	add_child(possession)
 
@@ -95,10 +111,16 @@ func _ready() -> void:
 	human.camera = camera
 	add_child(human)
 
+	var opp_ref: Team = opp if not opp.players.is_empty() else null
 	team_control = TeamControl.new()
 	team_control.name = "TeamControl"
-	team_control.setup(team, ball, passing, human, support_tuning)
+	team_control.setup(team, opp_ref, ball, passing, possession, human, support_tuning, defence_tuning)
 	add_child(team_control)
+	if opp_ref:
+		opp_control = TeamControl.new()
+		opp_control.name = "OppControl"
+		opp_control.setup(opp, team, ball, passing, possession, null, support_tuning, defence_tuning)
+		add_child(opp_control)
 
 	hud = MatchHud.new()
 	hud.ball = ball
@@ -109,6 +131,7 @@ func _ready() -> void:
 	debug_overlay.possession = possession
 	debug_overlay.passing = passing
 	debug_overlay.team_control = team_control
+	debug_overlay.opp_control = opp_control
 	add_child(debug_overlay)
 	debug_overlay.attach_world(self)
 
@@ -123,6 +146,8 @@ func _ready() -> void:
 	possession.pickup_failed.connect(func(_p, _c): hud.notify("FUMBLED", Color("#f5a524"), 0.9))
 	possession.catch_failed.connect(func(_p, _c, knock_on: bool):
 		hud.notify("KNOCK-ON" if knock_on else "DROPPED", Color("#f5a524"), 1.0))
+	ball.carrier_changed.connect(_on_carrier_changed_notice)
+	hud.team_control = team_control
 	passing.pass_thrown.connect(func(_p, _r, forward: bool):
 		if forward:
 			hud.notify("FORWARD PASS", Color("#ff5a5f"), 1.2))
@@ -137,48 +162,67 @@ func controlled_player() -> RugbyPlayer:
 
 func reset_play() -> void:
 	possession.clear_cooldowns()
-	for i in team.players.size():
-		team.players[i].reset_to(lineup_spots[i], team.attack())
+	for p in team.players + opp.players:
+		p.reset_to(lineup_spots[p], p.team.attack())
+		p.set_role(RugbyPlayer.Role.NEUTRAL)
 	if solo:
 		ball.spawn_loose(SANDBOX_BALL_SPOT, Vector3.ZERO)
 	else:
 		ball.attach(team.players[0])
 	team_control.set_controlled(team.players[0])
+	_possession_team = team if not solo else null
 	camera.snap()
 
 
-func _spawn_players() -> void:
-	var entries: Array = []
-	if solo:
-		entries = [{"number": SANDBOX_NUMBER, "pos": [SANDBOX_SPOT.x, SANDBOX_SPOT.z]}]
-	else:
-		entries = team_data.get("lineup", [])
-		if entries.is_empty():
-			entries = [{"number": SANDBOX_NUMBER, "pos": [0.0, 0.0]}]
+func _load_team(t: Team, path: String) -> Dictionary:
+	var data := JsonLoader.load_dict(path)
+	t.name = String(data.get("name", "Team"))
+	t.attack_dir = signf(float(data.get("attack_dir", 1.0)))
+	if t.attack_dir == 0.0:
+		t.attack_dir = 1.0
+	return data
+
+
+func _spawn_team(t: Team, data: Dictionary, roster: Array[PlayerProfile], entries: Array, prefix: String) -> void:
+	if entries.is_empty():
+		entries = [{"number": roster[0].number, "pos": [0.0, 0.0]}]
 	for e in entries:
-		var profile := _profile_by_number(int(e.get("number", 0)))
+		var profile := _profile_by_number(roster, int(e.get("number", 0)))
 		var p := RugbyPlayer.new()
-		p.name = "Player" if solo else "P%d" % profile.number
+		p.name = prefix if prefix == "Player" else "%s%d" % [prefix, profile.number]
 		p.setup(profile, tuning)
-		p.team = team
-		_apply_kit(p)
+		p.team = t
+		_apply_kit(p, data)
 		add_child(p)
 		var visual := PlayerVisual.new()
 		visual.name = "Visual"
 		visual.player = p
 		p.add_child(visual)
 		var pos: Array = e.get("pos", [0.0, 0.0])
-		lineup_spots.append(Vector3(float(pos[0]), 0.0, float(pos[1])))
-		team.players.append(p)
+		lineup_spots[p] = Vector3(float(pos[0]), 0.0, float(pos[1]))
+		t.players.append(p)
 
 
-func _profile_by_number(n: int) -> PlayerProfile:
-	for i in squad.size():
-		if squad[i].number == n:
-			_profile_index = i
-			return squad[i]
-	push_warning("No squad player with number %d; using %s" % [n, squad[0].display_name])
-	return squad[0]
+func _profile_by_number(roster: Array[PlayerProfile], n: int) -> PlayerProfile:
+	for i in roster.size():
+		if roster[i].number == n:
+			if roster == squad:
+				_profile_index = i
+			return roster[i]
+	push_warning("No squad player with number %d; using %s" % [n, roster[0].display_name])
+	return roster[0]
+
+
+## Turnover notices (who had the ball last vs. who has it now).
+func _on_carrier_changed_notice(_old: RugbyPlayer, new: RugbyPlayer) -> void:
+	if new == null or new.team == null:
+		return
+	if _possession_team != null and new.team != _possession_team:
+		if new.team == opp:
+			hud.notify("INTERCEPTED" if possession.last_gain == &"catch" else "TURNOVER", Color("#ff5a5f"), 1.2)
+		else:
+			hud.notify("TURNOVER WON", Color("#7cff6b"), 1.2)
+	_possession_team = new.team
 
 
 func _on_controlled_changed(_old: RugbyPlayer, new: RugbyPlayer) -> void:
@@ -220,14 +264,18 @@ func reload_tuning() -> void:
 	ball_tuning = BallTuning.load_default()
 	pass_tuning = PassingTuning.load_default()
 	support_tuning = SupportTuning.load_default()
-	for p in team.players:
+	for p in team.players + opp.players:
 		p.set_tuning(tuning)
 	ball.set_tuning(ball_tuning)
 	possession.tuning = ball_tuning
 	possession.pass_tuning = pass_tuning
 	passing.tuning = pass_tuning
-	team_control.support = support_tuning
-	print("Tuning reloaded (movement, ball, passing, support)")
+	defence_tuning = DefenceTuning.load_default()
+	for c in [team_control, opp_control]:
+		if c:
+			c.support = support_tuning
+			c.defence = defence_tuning
+	print("Tuning reloaded (movement, ball, passing, support, defence)")
 
 
 ## Dev: bounce a loose ball toward the controlled player from ~12 m ahead.
@@ -260,8 +308,8 @@ func _on_ball_dead(zone: FieldDimensions.Zone, point: Vector3) -> void:
 		ball.spawn_loose(Vector3(x, ball_tuning.radius, z), Vector3.ZERO))
 
 
-func _apply_kit(p: RugbyPlayer) -> void:
-	var kit: Dictionary = team_data.get("kit", {})
+func _apply_kit(p: RugbyPlayer, data: Dictionary) -> void:
+	var kit: Dictionary = data.get("kit", {})
 	for key in ["jersey", "shorts", "socks", "indicator"]:
 		if kit.has(key):
 			p.team_colors[key] = Color(String(kit[key]))
