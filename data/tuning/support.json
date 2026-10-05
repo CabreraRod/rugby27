@@ -1,0 +1,10 @@
+{
+	"_comment": "Receiver-dummy support lines (M04 placeholder for M06 AI). Metres / seconds.",
+	"depth_first": 2.5,
+	"depth_step": 1.0,
+	"spacing": 7.0,
+	"gain": 1.6,
+	"touch_margin": 2.0,
+	"settle_dist": 0.35,
+	"receiver_assist_angle": 45.0
+}

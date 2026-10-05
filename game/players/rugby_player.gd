@@ -2,7 +2,7 @@ class_name RugbyPlayer
 extends CharacterBody3D
 ## A rugby player body: owns physical state and movement.
 ##
-## It does not read input. A controller (HumanController now, AI later) calls
+## It does not read input. TeamControl (human input or support runner) calls
 ## set_intent() every physics tick before this node simulates. That keeps the
 ## same movement rules for every player on the pitch.
 
@@ -41,6 +41,15 @@ var planar_accel := Vector2.ZERO
 var facing := Vector2(1.0, 0.0)
 var is_sprinting := false
 
+## Team membership (attack direction, teammates). Null in isolated tests.
+var team: Team
+## True while the human controls this player (presentation reads it).
+var is_controlled := false
+## Short-lived action for presentation (e.g. &"pass_left", &"catch").
+var action: StringName = &""
+var action_timer := 0.0
+var action_duration := 0.0
+
 var team_colors := {
 	"jersey": Color("#1f4fa3"),
 	"shorts": Color("#f2f2f2"),
@@ -52,6 +61,7 @@ var _model := LocomotionModel.new()
 var _intent_dir := Vector2.ZERO
 var _intent_mag := 0.0
 var _intent_sprint := false
+var _intent_speed := -1.0
 var _state_timer := 0.0
 
 
@@ -81,10 +91,13 @@ func _ready() -> void:
 
 ## Called by the controller each physics tick.
 ## dir: desired ground direction (any length, normalized here), magnitude 0..1.
-func set_intent(dir: Vector2, magnitude: float, sprint: bool) -> void:
+## speed: optional exact target speed (m/s, still capped by jog/sprint top
+## and stamina) — used to hold a pace, e.g. a receiver running onto a pass.
+func set_intent(dir: Vector2, magnitude: float, sprint: bool, speed: float = -1.0) -> void:
 	_intent_dir = dir.normalized() if dir.length_squared() > 1e-6 else Vector2.ZERO
 	_intent_mag = clampf(magnitude, 0.0, 1.0)
 	_intent_sprint = sprint
+	_intent_speed = speed
 
 
 func _physics_process(delta: float) -> void:
@@ -94,6 +107,10 @@ func _physics_process(delta: float) -> void:
 ## One simulation tick. Public so tests can drive it deterministically.
 func simulate(dt: float) -> void:
 	var prev := planar_velocity
+	if action_timer > 0.0:
+		action_timer -= dt
+		if action_timer <= 0.0:
+			action = &""
 	match state:
 		State.LOCOMOTION:
 			_tick_locomotion(dt)
@@ -128,6 +145,10 @@ func _tick_locomotion(dt: float) -> void:
 	if has_input:
 		# Analog stick scales jog speed (walk -> jog). Sprint is full speed.
 		target_speed = stats.sprint_top if wants_sprint else stats.jog_top * _intent_mag
+		if _intent_speed >= 0.0:
+			target_speed = minf(_intent_speed, stats.sprint_top if stamina.can_sprint() else stats.jog_top)
+			wants_sprint = target_speed > stats.jog_top
+			is_sprinting = wants_sprint and speed > 1.0
 
 	planar_velocity = _model.step(planar_velocity, _intent_dir, target_speed, stats, tuning, dt)
 
@@ -163,6 +184,24 @@ func go_to_ground() -> void:
 		return
 	_set_state(State.GROUNDED)
 	_state_timer = tuning.ground_time
+
+
+## Cosmetic action cue (pass, catch). Never blocks movement.
+func play_action(a: StringName, duration: float) -> void:
+	action = a
+	action_timer = duration
+	action_duration = duration
+
+
+## Action progress 0..1 (0 = just started).
+func action_progress() -> float:
+	if action_duration <= 0.0:
+		return 1.0
+	return 1.0 - clampf(action_timer / action_duration, 0.0, 1.0)
+
+
+func planar_position() -> Vector2:
+	return Vector2(global_position.x, global_position.z)
 
 
 ## Momentary loss of speed (pickup at pace, fumble). keep: fraction kept.

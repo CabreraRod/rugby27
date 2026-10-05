@@ -4,6 +4,7 @@ extends SceneTree
 ## Needs a real (or virtual, e.g. xvfb-run) display; not --headless.
 
 var _out := "user://screenshots"
+var scene: Node3D
 
 
 func _initialize() -> void:
@@ -15,44 +16,57 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	var scene: Node3D = load("res://game/match/match.tscn").instantiate()
+	scene = load("res://game/match/match.tscn").instantiate()
+	scene.solo = false
 	root.add_child(scene)
-	var player: RugbyPlayer = scene.get_node("Player")
-	var ball: RugbyBall = scene.get_node("Ball")
-	scene.get_node("HumanController").player = null
+	var passing: PassingSystem = scene.passing
+	var ball: RugbyBall = scene.ball
 	await _frames(20)
-	await _shot("01_kickoff_ball")
+	await _shot("01_lineup_markers")
 
-	# Jog onto the ball, pick it up and sprint with it.
-	await _drive(player, Vector2.RIGHT, false, 70)
-	await _drive(player, Vector2(1, -0.4), true, 50)
-	await _shot("02_carrying")
-
-	# Dev toss: ball bounces toward the player; debug shows predicted flight.
-	scene.possession.drop(player)
-	await _drive(player, Vector2.ZERO, false, 60)
-	player.reset_to(Vector3(-10, 0, 5))
-	scene.camera.snap()
-	scene.toss_ball_to_player()
+	# Run forward with the line, then 9 -> 10 -> 12 -> 13.
+	_stick(Vector2.RIGHT)
+	await _ticks(60)
+	await _shot("02_running_line")
 	scene.debug_overlay.toggle()
-	await _drive(player, Vector2.ZERO, false, 14)
-	await _shot("03_toss_debug_prediction")
+	passing.throw(ball.carrier, PassTargeting.LEFT, false)
+	await _ticks(14)
+	await _shot("03_pass_in_flight_debug")
 	scene.debug_overlay.toggle()
-	await _drive(player, Vector2.ZERO, false, 30)
-	await _shot("04_loose_ball_bounce")
-
-	# Carry it over the touchline.
-	player.reset_to(Vector3(5, 0, 26), Vector2(0, 1))
-	ball.spawn_loose(Vector3(5, 0.11, 26.4), Vector3.ZERO)
-	scene.camera.snap()
-	await _drive(player, Vector2(0.2, 1), true, 125)
-	await _shot("05_touch")
+	await _wait_held()
+	await _ticks(20)
+	passing.begin(ball.carrier, PassTargeting.LEFT)
+	await _ticks(12)
+	await _shot("04_charging_long")
+	passing.release()
+	await _ticks(8)
+	await _shot("05_catch_pose")
+	await _wait_held()
+	await _ticks(20)
+	# Nobody further out: the 13 gives it back inside to the 12.
+	passing.throw(ball.carrier, PassTargeting.RIGHT, false)
+	await _wait_held()
+	await _ticks(10)
+	await _shot("06_back_inside")
 	quit(0)
 
 
-func _drive(p: RugbyPlayer, dir: Vector2, sprint: bool, frames: int) -> void:
-	for i in frames:
-		p.set_intent(dir, 1.0 if dir != Vector2.ZERO else 0.0, sprint)
+func _stick(dir: Vector2) -> void:
+	var it := SupportRunner.Intent.new()
+	it.dir = dir
+	it.mag = 1.0
+	scene.human.scripted = it
+
+
+func _wait_held() -> void:
+	for i in 150:
+		await physics_frame
+		if scene.ball.state == RugbyBall.State.HELD:
+			return
+
+
+func _ticks(n: int) -> void:
+	for i in n:
 		await physics_frame
 	await process_frame
 

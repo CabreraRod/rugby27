@@ -32,6 +32,7 @@ var _pitch := 0.0
 var _roll := 0.0
 var _ground_blend := 0.0
 var _carry_blend := 0.0
+var _number: Label3D
 
 
 func _ready() -> void:
@@ -108,6 +109,19 @@ func _build() -> void:
 	_ring_pointer.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_rig.add_child(_ring_pointer)
 
+	# Shirt number over the head (readability with several players).
+	_number = Label3D.new()
+	_number.text = str(player.profile.number) if player else ""
+	_number.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_number.fixed_size = true
+	_number.pixel_size = 0.0009
+	_number.font_size = 26
+	_number.outline_size = 8
+	_number.outline_modulate = Color(0, 0, 0, 0.8)
+	_number.position = Vector3(0, 2.2, 0)
+	_number.no_depth_test = true
+	add_child(_number)
+
 
 ## Limb pivoting at `origin`, hanging down: upper segment, lower segment, end.
 func _limb(origin: Vector3, length: float, radius: float, upper_mat: Material, lower_mat: Material, end_mat: Material) -> Node3D:
@@ -174,10 +188,30 @@ func _process(delta: float) -> void:
 	_arm_r.rotation.x = lerpf(_arm_r.rotation.x, 0.75, _carry_blend)
 	_arm_r.rotation.z = lerpf(0.12, -0.25, _carry_blend)
 	_body.position.y = absf(cos(_phase)) * 0.06 * amp - 0.03 * amp
+	_apply_action_pose()
 
-	# Indicator: hidden when grounded, pointer tracks facing.
-	_ring.visible = _ground_blend < 0.5
+	# Indicator only on the controlled player; hidden when grounded.
+	_ring.visible = _ground_blend < 0.5 and player.is_controlled
 	_ring_pointer.visible = _ring.visible
+	_number.text = str(player.profile.number)
+	_number.modulate = Color("#ffd23f") if player.is_controlled else Color.WHITE
+
+
+## Short procedural overlays for passes and catches (cosmetic, never blocks).
+func _apply_action_pose() -> void:
+	var t := player.action_progress()
+	match player.action:
+		&"pass_left", &"pass_right":
+			# Both hands forward, sweeping across the body toward the target.
+			var dir := -1.0 if player.action == &"pass_left" else 1.0
+			var sweep := lerpf(-0.6, 0.9, t) * dir
+			var lift := sin(t * PI) * 0.4 + 1.0
+			_arm_l.rotation = Vector3(lift, 0.0, sweep - 0.2)
+			_arm_r.rotation = Vector3(lift, 0.0, sweep + 0.2)
+		&"catch":
+			var reach := 1.3 * (1.0 - t * 0.5)
+			_arm_l.rotation = Vector3(reach, 0.0, 0.25)
+			_arm_r.rotation = Vector3(reach, 0.0, -0.25)
 
 
 static func _facing_to_yaw(f: Vector2) -> float:

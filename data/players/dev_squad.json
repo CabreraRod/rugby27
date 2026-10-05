@@ -1,5 +1,5 @@
 {
-	"_comment": "Fictional development players. Press N in-game to cycle and feel attribute differences.",
+	"_comment": "Fictional development players. N in-game cycles the controlled player's profile through this list (movement comparison).",
 	"players": [
 		{
 			"name": "Tomás Arrieta",
@@ -26,6 +26,42 @@
 			"attributes": {
 				"speed": 52, "acceleration": 60, "strength": 95, "passing": 55, "kicking": 30,
 				"tackling": 82, "handling": 62, "decision_making": 70, "stamina": 74
+			}
+		},
+		{
+			"name": "Facundo Ledesma",
+			"number": 9,
+			"position": "ScrumHalf",
+			"attributes": {
+				"speed": 80, "acceleration": 90, "strength": 60, "passing": 94, "kicking": 80,
+				"tackling": 66, "handling": 90, "decision_making": 88, "stamina": 90
+			}
+		},
+		{
+			"name": "Mateo Quiroga",
+			"number": 12,
+			"position": "InsideCentre",
+			"attributes": {
+				"speed": 80, "acceleration": 80, "strength": 85, "passing": 80, "kicking": 66,
+				"tackling": 84, "handling": 82, "decision_making": 80, "stamina": 84
+			}
+		},
+		{
+			"name": "Rafael Duarte",
+			"number": 13,
+			"position": "OutsideCentre",
+			"attributes": {
+				"speed": 87, "acceleration": 85, "strength": 79, "passing": 77, "kicking": 58,
+				"tackling": 80, "handling": 83, "decision_making": 78, "stamina": 83
+			}
+		},
+		{
+			"name": "Liam Okafor",
+			"number": 15,
+			"position": "FullBack",
+			"attributes": {
+				"speed": 88, "acceleration": 86, "strength": 70, "passing": 80, "kicking": 85,
+				"tackling": 72, "handling": 90, "decision_making": 84, "stamina": 85
 			}
 		}
 	]

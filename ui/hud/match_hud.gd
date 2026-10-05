@@ -77,11 +77,11 @@ func _ready() -> void:
 	v.add_child(_stamina_bar)
 
 	_hint = Label.new()
-	_hint.text = "Move: WASD / Left stick    Sprint: Shift / RT    Camera: C    Debug: F1\nBall: run over it to pick up    Dev: F drop   T toss ball   G ground   B role   N next player   R reset   F5 reload"
+	_hint.text = "Move: WASD / Left stick    Sprint: Shift / RT    Pass left/right: Q / E  ·  LB / RB  (hold = long)\nCamera: C   Debug: F1   Sandbox: F2   Dev: F drop  T toss  G ground  N profile  R reset  F5 reload"
 	_hint.anchor_left = 0.5
 	_hint.anchor_right = 0.5
-	_hint.offset_left = -400
-	_hint.offset_right = 400
+	_hint.offset_left = -500
+	_hint.offset_right = 500
 	_hint.offset_top = 18
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.92))

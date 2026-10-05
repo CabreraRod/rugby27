@@ -5,10 +5,13 @@ func test_shipped_tuning_matches_code_defaults() -> void:
 	# Tests use code defaults; this keeps them honest about the shipped feel.
 	_compare(MovementTuning.new(), MovementTuning.load_default(), "movement.json")
 	_compare(BallTuning.new(), BallTuning.load_default(), "ball.json")
+	_compare(PassingTuning.new(), PassingTuning.load_default(), "passing.json")
+	_compare(SupportTuning.new(), SupportTuning.load_default(), "support.json")
 
 
 func test_shipped_tuning_has_every_key() -> void:
-	for pair in [[MovementTuning.new(), MovementTuning.DEFAULT_PATH], [BallTuning.new(), BallTuning.DEFAULT_PATH]]:
+	for pair in [[MovementTuning.new(), MovementTuning.DEFAULT_PATH], [BallTuning.new(), BallTuning.DEFAULT_PATH],
+			[PassingTuning.new(), PassingTuning.DEFAULT_PATH], [SupportTuning.new(), SupportTuning.DEFAULT_PATH]]:
 		var data := JsonLoader.load_dict(pair[1])
 		for key in pair[0].property_names().keys():
 			check(data.has(key), "%s is missing '%s'" % [pair[1].get_file(), key])
@@ -19,6 +22,16 @@ func _compare(defaults: TuningData, shipped: TuningData, label: String) -> void:
 		var a: float = defaults.get(key)
 		var b: float = shipped.get(key)
 		check(is_equal_approx(a, b), "%s '%s' = %s but code default = %s" % [label, key, b, a])
+
+
+func test_dev_lineup_numbers_exist_in_squad() -> void:
+	var squad := PlayerProfile.load_squad("res://data/players/dev_squad.json")
+	var numbers := []
+	for p in squad:
+		numbers.append(p.number)
+	var team := JsonLoader.load_dict("res://data/teams/dev_team.json")
+	for e in team.get("lineup", []):
+		check(numbers.has(int(e["number"])), "lineup #%d has no squad entry" % int(e["number"]))
 
 
 func test_dev_squad_loads() -> void:

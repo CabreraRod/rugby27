@@ -8,8 +8,8 @@ stop for review. No skipping ahead.
 | 01 | Empty field + camera | ✅ | Pitch, posts, lighting, broadcast camera |
 | 02 | One controllable player | ✅ (joystick playtest pending) | Movement passes feel targets and feels good in hand |
 | 03 | Ball + possession | ✅ | Ball is a physics object; pick up, carry, drop, bounce, out of bounds |
-| 04 | Passing | ⏭ next | A→B→C→D chain without fighting controls; forward pass detection |
-| 05 | Multiple players | | Switch control between teammates; camera focus solver |
+| 04 | Passing | ✅ | A→B→C→D chain without fighting controls; forward pass detection |
+| 05 | Multiple players | ⏭ next | Second team, switching on defence, camera focus solver |
 | 06 | Basic AI | | AI controllers use `set_intent()`; support lines, simple defence |
 | 07 | Tackling | | Tackle outcome from speed/angle/strength/timing; break tackles |
 | 08 | Rucks | | Tackle → ground → ruck → ball available, contest, turnover |
@@ -38,30 +38,34 @@ live); HUD notices; debug flight prediction. 53 automated tests.
 
 Not done (by design): passing, kicking, knock-on rulings, restarts.
 
-## Milestone 04 — Passing (next)
+## Milestone 04 — Passing ✅
 
-**Ordering problem to decide first:** passing needs receivers, but
-multiple players are M05 and AI is M06.
+Delivered (option A — receiver dummies): six-player backline from data;
+support lines that reform after every pass; tap/hold passing to the
+attacker's left/right with lead solving, accuracy and pass-into-space;
+control switch at release with receiver pace assist; catching at closest
+approach with knock-ons; forward-pass detection; pass target labels; shirt
+numbers; pass/catch poses; F2 single-player sandbox. 85 automated tests;
+soak: 97 % completion, 0 forward passes.
 
-- Option A — M04 adds *receiver dummies*: teammates that hold a simple
-  attacking line and run straight at a set depth (no decision-making).
-  Control switches to the catcher. Minimal overlap with M05.
-- Option B — swap M04 and M05 (multiple players + switching first).
-- Option C — pass to fixed targets/cones only (tests the mechanic, not the
-  feel of A→B→C→D).
+Not done (by design): rulings for knock-on/forward pass (M11), opponents
+and interceptions (M05), real support AI (M06), manual player switching.
 
-**Recommendation: A.** It's the smallest thing that lets the
-"A→B→C→D without fighting the controls" goal be felt, and the dummies are
-replaced by real AI in M06 through the same `set_intent()` API.
+## Milestone 05 — Multiple players (next)
 
-Scope (with A):
-- Pass left / pass right buttons (LB/RB), tap = quick pass, hold = longer.
-- Target selection: nearest sensible receiver on that side (depth/width),
-  with a debug view of the choice.
-- Pass flight: release velocity solved to meet the receiver's predicted run;
-  accuracy from passing attribute, pressure-free for now.
-- Catching: catch chance from handling, ball speed and body angle; drops
-  become loose balls (knock-on detection logged, ruling in M11).
-- Forward-pass detection relative to the passer's motion (logged + notice).
-- Tests: pass reaches a running receiver, chain of 3 passes, forward pass
-  detected, catch failure produces a loose ball.
+Scope proposal:
+- A second team from data (attack_dir −1, other kit), 6 v 6 to start.
+- Opponents controlled by simple placeholder defenders: a flat line that
+  holds the gain line and drifts with the ball (no tackling yet — M07).
+- Interceptions: opponents can catch passes (the existing catch rules).
+- Manual switching when your team doesn't have the ball (nearest to ball /
+  cycle), and the "possession changes team" flow.
+- Camera focus solver: frames ball + carrier + nearest defenders instead of
+  only the controlled player.
+- Debug: defensive line, which player each defender marks.
+
+Decision to flag: whether the human can choose to control the defending
+team (switching sides on a turnover) from M05, or always the same team
+until game modes exist. Recommendation: the human always controls one
+team and switches *players* within it on turnovers — that's what a match
+needs.

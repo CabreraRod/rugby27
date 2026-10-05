@@ -16,8 +16,12 @@ func _enter_tree() -> void:
 	_add("move_up", [KEY_W, KEY_UP], [], [[JOY_AXIS_LEFT_Y, -1.0]], STICK_DEADZONE)
 	_add("move_down", [KEY_S, KEY_DOWN], [], [[JOY_AXIS_LEFT_Y, 1.0]], STICK_DEADZONE)
 
-	# Sprint — Shift, right trigger or right bumper.
-	_add("sprint", [KEY_SHIFT], [JOY_BUTTON_RIGHT_SHOULDER], [[JOY_AXIS_TRIGGER_RIGHT, 1.0]], TRIGGER_DEADZONE)
+	# Sprint — Shift or right trigger.
+	_add("sprint", [KEY_SHIFT], [], [[JOY_AXIS_TRIGGER_RIGHT, 1.0]], TRIGGER_DEADZONE)
+
+	# Passing — to the attacker's left / right. Tap = quick, hold = long/skip.
+	_add("pass_left", [KEY_Q], [JOY_BUTTON_LEFT_SHOULDER], [], 0.5)
+	_add("pass_right", [KEY_E], [JOY_BUTTON_RIGHT_SHOULDER], [], 0.5)
 
 	# Camera.
 	_add("camera_toggle", [KEY_C], [JOY_BUTTON_BACK], [], 0.5)
@@ -30,7 +34,8 @@ func _enter_tree() -> void:
 	_add("dev_next_profile", [KEY_N], [JOY_BUTTON_Y], [], 0.5)
 	_add("dev_reload_tuning", [KEY_F5], [], [], 0.5)
 	_add("dev_drop_ball", [KEY_F], [JOY_BUTTON_X], [], 0.5)
-	_add("dev_toss_ball", [KEY_T], [JOY_BUTTON_LEFT_SHOULDER], [], 0.5)
+	_add("dev_toss_ball", [KEY_T], [JOY_BUTTON_DPAD_DOWN], [], 0.5)
+	_add("dev_sandbox", [KEY_F2], [JOY_BUTTON_DPAD_UP], [], 0.5)
 
 
 func _add(action: StringName, keys: Array, buttons: Array, axes: Array, deadzone: float) -> void:

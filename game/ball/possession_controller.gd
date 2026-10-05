@@ -1,16 +1,25 @@
 class_name PossessionController
 extends Node
-## Decides who has the ball: pickups, fumbled pickups, releases.
+## Decides who has the ball: pickups and catches (and their failures),
+## drops, placing.
 ##
 ## Runs after players moved and before the ball updates (physics priority 5),
-## so a pickup on tick N puts the ball in hand on tick N.
+## so a pickup/catch on tick N puts the ball in hand on tick N.
 ## Owns the BALL_CARRIER role: whoever holds the ball gets it, nobody else.
+##
+## A loose ball near the ground is a PICKUP (PickupModel); a ball in the air
+## at catchable height is a CATCH (CatchModel).
 
 signal pickup(player: RugbyPlayer, chance: float)
 signal pickup_failed(player: RugbyPlayer, chance: float)
+signal caught(player: RugbyPlayer, chance: float)
+signal catch_failed(player: RugbyPlayer, chance: float, knock_on: bool)
 
 var ball: RugbyBall
 var tuning: BallTuning
+var pass_tuning: PassingTuning
+## Receiver of the pass in flight (set by PassingSystem): larger catch reach.
+var intended_receiver: RugbyPlayer
 var players: Array[RugbyPlayer] = []
 var rng := RandomNumberGenerator.new()
 ## For debug: last computed chance for each player id.
@@ -40,19 +49,36 @@ func _physics_process(delta: float) -> void:
 			_cooldown.erase(id)
 	if ball == null or not ball.is_loose():
 		return
+	var airborne := pass_tuning != null and not ball.on_ground and ball.global_position.y > pass_tuning.catch_min_height
 	var best: RugbyPlayer = null
 	var best_d := INF
 	for p in players:
 		if not p.is_controllable() or _cooldown.has(p.get_instance_id()):
 			continue
-		if not PickupModel.in_reach(p.global_position, ball.global_position, tuning):
+		if airborne:
+			# A pass in flight: the passer's teammates let it through to the
+			# intended receiver (opponents may intercept once they exist).
+			if intended_receiver and p != intended_receiver and p.team and p.team == intended_receiver.team:
+				continue
+			var reach := pass_tuning.catch_reach_intended if p == intended_receiver else pass_tuning.catch_reach
+			if not CatchModel.in_reach(p.global_position, ball.global_position, reach, pass_tuning):
+				continue
+			# Hands meet the ball at its closest approach, not at the edge of reach.
+			if not CatchModel.at_closest_approach(p.global_position, p.planar_velocity, ball.global_position, ball.ball_velocity(), delta, pass_tuning):
+				continue
+		elif not PickupModel.in_reach(p.global_position, ball.global_position, tuning):
 			continue
 		var d := p.global_position.distance_squared_to(ball.global_position)
+		if p == intended_receiver:
+			d *= 0.25   # the intended receiver wins close calls
 		if d < best_d:
 			best_d = d
 			best = p
 	if best:
-		attempt_pickup(best)
+		if airborne:
+			attempt_catch(best)
+		else:
+			attempt_pickup(best)
 
 
 func pickup_chance(p: RugbyPlayer) -> float:
@@ -76,6 +102,41 @@ func attempt_pickup(p: RugbyPlayer) -> bool:
 	_cooldown[p.get_instance_id()] = tuning.pickup_retry_cooldown
 	pickup_failed.emit(p, c)
 	return false
+
+
+func catch_chance(p: RugbyPlayer) -> float:
+	var bpos := ball.global_position
+	var bv := ball.ball_velocity()
+	var rel := (bv - Vector3(p.planar_velocity.x, 0.0, p.planar_velocity.y)).length()
+	var to_ball := Vector2(bpos.x, bpos.z) - p.planar_position()
+	var behind := -to_ball.dot(p.facing)
+	var height := bpos.y - p.global_position.y
+	return CatchModel.chance(p.profile.attributes.norm("handling"), rel, behind, height, pass_tuning)
+
+
+func attempt_catch(p: RugbyPlayer) -> bool:
+	var c := catch_chance(p)
+	last_chance[p.get_instance_id()] = c
+	if rng.randf() < c:
+		ball.attach(p)
+		p.play_action(&"catch", 0.25)
+		caught.emit(p, c)
+		return true
+	var attack := p.team.attack() if p.team else p.facing
+	var v := CatchModel.knock_velocity(ball.ball_velocity(), attack, rng, pass_tuning)
+	var knock_on := CatchModel.is_knock_on(v, attack)
+	ball.knock(v, p, &"knock_on" if knock_on else &"dropped")
+	_cooldown[p.get_instance_id()] = pass_tuning.catch_retry_cooldown
+	catch_failed.emit(p, c, knock_on)
+	return false
+
+
+func set_cooldown(p: RugbyPlayer, seconds: float) -> void:
+	_cooldown[p.get_instance_id()] = seconds
+
+
+func clear_cooldowns() -> void:
+	_cooldown.clear()
 
 
 ## Dev / future knock-on: carrier loses the ball forward.

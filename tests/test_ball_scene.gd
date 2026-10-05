@@ -9,11 +9,12 @@ var possession: PossessionController
 
 func before_each() -> void:
 	scene = load("res://game/match/match.tscn").instantiate()
+	scene.solo = true   # single-player sandbox: M01-M03 behaviour
 	tree.root.add_child(scene)
 	player = scene.get_node("Player")
 	ball = scene.get_node("Ball")
 	possession = scene.get_node("Possession")
-	scene.get_node("HumanController").player = null
+	scene.get_node("TeamControl").active = false
 	# Park the player away from the ball unless a test says otherwise.
 	player.reset_to(Vector3(-20, 0, 0))
 

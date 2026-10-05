@@ -13,16 +13,21 @@ must happen in the same tick, every time.
 | Action | Keyboard | Gamepad |
 |---|---|---|
 | Move (camera-relative) | WASD / arrows | Left stick (analog: walk → jog) |
-| Sprint | Shift | RT or RB |
+| Sprint | Shift | RT / R2 |
+| Pass to the attacker's left (tap quick, hold long) | Q | LB / L1 |
+| Pass to the attacker's right (tap quick, hold long) | E | RB / R1 |
 | Toggle camera (side / end-on) | C | Back/View |
 | Debug overlay | F1 | — |
+| Toggle single-player sandbox / team mode | F2 | D-pad up |
 | Dev: go to ground | G | B / Circle |
 | Dev: toggle neutral/defender (when not carrying) | B | — |
 | Dev: drop the ball (forward, knock-on style) | F | X / Square |
-| Dev: toss a bouncing ball toward you | T | LB / L1 |
-| Dev: next player profile | N | Y / Triangle |
-| Dev: reset player + ball | R | Start |
-| Dev: hot-reload `movement.json` + `ball.json` | F5 | — |
+| Dev: toss a bouncing ball toward you | T | D-pad down |
+| Dev: next profile for the controlled player | N | Y / Triangle |
+| Dev: reset lineup + ball | R | Start |
+| Dev: hot-reload all `data/tuning/*.json` | F5 | — |
+
+Sprint moved from RB to RT only in M04 (RB passes).
 
 ### Feel model
 
@@ -121,9 +126,77 @@ Changing a target is a design decision — update this table in the same commit.
 ### Readability
 
 - White ring on the grass under any loose ball (grows with height).
-- "● BALL" in the HUD when you carry; centre notices for TOUCH / FUMBLED.
+- "● BALL" in the HUD when you carry; centre notices for TOUCH / FUMBLED /
+  KNOCK-ON / DROPPED / FORWARD PASS.
 - Debug (F1): ball state, carrier, last touch, bounce count/deflection,
   live pickup chance, pickup reach circle, predicted flight + landing spot.
+
+## Passing (Milestone 04)
+
+### Controls and targeting
+
+- **Left / right are the attacker's**, never the screen's (consistent with
+  any camera). Attacking right on the side camera, "left" is the far side.
+- **Tap** (released before 0.16 s) → quick pass to the nearest receiver on
+  that side. **Hold** → long/skip pass to the next one out; auto-releases
+  at 0.45 s. If there is only one receiver, the long pass goes to them.
+- Receivers must be at least 1.5 m to that side, within 26 m, and no more
+  than 4 m ahead. A receiver ahead is still an option — the player is
+  allowed to make that mistake — but their label turns **red**.
+- No receiver on that side → pass into space (8 m out, 2 m back).
+- Floating labels over each side's current target: white = quick target,
+  yellow = the pass being charged (moves out on a long hold), red = likely
+  forward.
+
+### Flight
+
+- Passes **lead the receiver**: flight time solved so the ball meets their
+  predicted run at chest height (1.15 m). Real Jolt flight — no homing.
+- Speed by passing attribute: quick 12.5–15.5 m/s, long 15.5–19.5 m/s.
+- Accuracy: aim error SD 1.3 m (passing 0) → 0.15 m (passing 100), ×1.5 for
+  long passes, up to ×1.5 at full sprint. Errors go long/short, high/low or
+  **behind** the receiver — never forward (forward passes come from choices,
+  not dice).
+
+### Control and the receiver
+
+- **Control switches to the receiver the moment the ball leaves the
+  passer's hands**, so you can run onto it and chain passes.
+- **Receiver pace assist:** while the ball is in the air to you, your run is
+  held (same speed and direction it was aimed at) unless you push the stick
+  more than 45° away from it. Without this, simply holding "forward" without
+  sprint would slow a sprinting receiver and the pass would fly past.
+- The passer's other teammates let a pass through to the intended receiver.
+
+### Catching
+
+- Judged at the ball's **closest approach** to the receiver (or when it's
+  within 0.45 m), inside a reach of 1.0 m (1.25 m for the intended receiver)
+  between 0.35 m and 2.4 m high.
+- Chance: 78 % → 99 % by handling, minus up to 20 % for very fast balls
+  (> 18 m/s relative — a normal pass to a runner crosses at 15–21 m/s), up
+  to 20 % for balls behind the body, up to 15 % outside chest height.
+- Drop: ~70 % knocked forward (**KNOCK-ON**), ~30 % backwards (**DROPPED**).
+  The ball is loose; rulings come with M11.
+
+### Forward pass
+
+- Forward if the ball's velocity **relative to the passer** points toward
+  the opponents' line faster than 0.6 m/s. Momentum carrying the ball forward
+  over the ground is legal. Detected at release; **FORWARD PASS** notice.
+  The scrum/penalty consequence comes with M11.
+
+### Measured (tools/pass_soak.gd, 24 seeded moves)
+
+97 % of passes caught by the intended receiver, 2 drops in 63 passes (both
+arriving ~0.5 m behind the body), 0 forward passes, 22/24 complete moves.
+
+### Receiver dummies (placeholder for M06)
+
+Non-controlled teammates hold a staggered line around the anchor (carrier,
+pass receiver, or loose ball): first receiver 2.5 m deep and 7 m wide, each
+further one 1 m deeper and 7 m wider, kept 2 m inside touch. They run with
+the carrier and reform after every pass. No decisions.
 
 ## Camera
 
@@ -134,5 +207,6 @@ the framing up to 35 % toward it.
 
 ## Readability
 
-- Yellow ring + pointer under the controlled player shows facing.
+- Yellow ring + pointer under the controlled player only; their shirt
+  number turns yellow. Every player shows a shirt number.
 - Stamina bar turns amber when fatigued, red when sprint is locked.

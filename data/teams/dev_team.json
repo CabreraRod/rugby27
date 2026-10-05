@@ -1,10 +1,19 @@
 {
-	"_comment": "Fictional development team. Full team data arrives at Milestone 05.",
+	"_comment": "Fictional development team. lineup: shirt numbers from dev_squad.json + start position [x, z] in metres (attacking +X; -Z is the attackers' left). The first entry starts with the ball.",
 	"name": "Development XV",
+	"attack_dir": 1,
 	"kit": {
 		"jersey": "#1f4fa3",
 		"shorts": "#f2f2f2",
 		"socks": "#1f4fa3",
 		"indicator": "#ffd23f"
-	}
+	},
+	"lineup": [
+		{ "number": 9,  "pos": [-5.0, 0.0] },
+		{ "number": 10, "pos": [-8.0, -7.0] },
+		{ "number": 12, "pos": [-11.0, -14.0] },
+		{ "number": 13, "pos": [-14.0, -21.0] },
+		{ "number": 11, "pos": [-8.0, 7.0] },
+		{ "number": 15, "pos": [-11.0, 14.0] }
+	]
 }

@@ -3,9 +3,9 @@
 A modern spiritual successor to classic console rugby. Original code, original
 procedural assets. Built incrementally: every milestone is playable.
 
-**Current state:** Milestone 03 — full-size pitch, broadcast camera, one
-controllable player, and a physical ball you can pick up, carry, drop and
-lose in touch.
+**Current state:** Milestone 04 — a six-player backline: you control the
+ball carrier, pass left/right along a line of teammates that run with you,
+and control follows the ball. F2 switches to a single-player sandbox.
 
 ## Run
 
@@ -19,20 +19,24 @@ lose in touch.
 | | Keyboard | Gamepad |
 |---|---|---|
 | Move | WASD / arrows | Left stick (analog) |
-| Sprint | Shift | RT / RB |
+| Sprint | Shift | RT |
+| Pass left / right (tap = quick, hold = long) | Q / E | LB / RB |
 | Camera side / end-on | C | Back |
 | Debug overlay | F1 | — |
+| Sandbox (one player) ↔ team mode | F2 | D-pad up |
 | Pick up the ball | run over it | run over it |
-| Dev: drop ball / toss ball | F / T | X / LB |
+| Dev: drop ball / toss ball | F / T | X / D-pad down |
 | Dev: ground / role / next player / reset / reload tuning | G / B / N / R / F5 | B / — / Y / Start / — |
 
-Movement and ball feel live in `data/tuning/movement.json` and `data/tuning/ball.json` — edit them while the game
-runs and press **F5** to hot-reload.
+All feel lives in `data/tuning/*.json` (movement, ball, passing, support) —
+edit while the game runs and press **F5** to hot-reload. Pass directions are
+the attacker's left/right, not the screen's.
 
 ## Tests
 
 ```sh
 ./tools/run_tests.sh            # uses $GODOT or `godot` on PATH
+godot --headless --path . --script res://tools/pass_soak.gd   # passing stats
 ```
 
 ## Docs

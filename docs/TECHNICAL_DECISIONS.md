@@ -108,10 +108,52 @@ Broadcast-style front lighting: players read better, and the far stand's
 shadow stays off the pitch (the original back-lit setup put a dark band
 over the near touchline).
 
+## TD-015 Receiver dummies before real AI (roadmap option A)
+
+- **Why:** passing needs receivers; the roadmap has multiple players in M05
+  and AI in M06. The user chose option A: minimal support runners now.
+- **How:** `SupportRunner` slots + steering, driven by `TeamControl` through
+  `set_intent()` — the exact API M06 AI will use.
+- **Trade-off:** some M05 work (a team, control switching) landed early.
+
+## TD-016 Control switches at release + receiver pace assist
+
+- **Why:** chaining A→B→C→D is only fluid if you steer the receiver while
+  the ball travels. But the pass is aimed at the receiver's *current* run;
+  any change of pace the player didn't mean (e.g. holding forward without
+  sprint) made the ball miss. Measured: first soak 78 % completion.
+- **How:** during the flight the receiver's exact speed and direction are
+  held unless the stick turns > 45°. Required a `speed` parameter on
+  `set_intent` (hold a pace between jog and sprint).
+- **Trade-off:** < 1 s of reduced fine control on the receiver. A hard turn
+  always wins, so it never feels like the game is fighting the player.
+
+## TD-017 Catches judged at closest approach
+
+- **Why:** judging on the first tick inside reach evaluated the catch at the
+  edge (worst height/angle) and caused unfair drops.
+- **Trade-off:** none found; it's also closer to how hands meet a ball.
+
+## TD-018 Passes are pure physics after release (no homing)
+
+- **Why:** spec ("don't fake ball movement"); misses must have readable
+  causes. Accuracy and receiver behaviour are tuned instead.
+- **Trade-off:** completion depends on good lead prediction — covered by
+  `tools/pass_soak.gd` and regression tests.
+
+## TD-019 Attacker-relative pass directions
+
+- **Why:** screen-relative left/right breaks with the end-on camera and
+  when attacking the other way.
+- **Trade-off:** on the side camera "left" means the far side of the
+  screen, which needs a moment to learn. Playtest; a setting is cheap.
+
 ## Open questions / risks
 
-- **Movement playtest still pending.** M03 started at the user's request
-  before the joystick feel test; movement numbers are unchanged since M02.
+- **Movement playtest still pending.** M03/M04 started at the user's
+  request before the joystick feel test; movement numbers are unchanged
+  since M02. F2 opens the single-player sandbox for that test.
+- **Pass direction mapping** (attacker-relative) needs a playtest verdict.
 
 - **Feel can only be partly verified by tests.** Numbers guarantee
   consistency; "satisfying" needs hands-on playtesting with keyboard and pad.

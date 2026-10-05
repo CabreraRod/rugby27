@@ -8,10 +8,11 @@ var player: RugbyPlayer
 
 func before_each() -> void:
 	scene = load("res://game/match/match.tscn").instantiate()
+	scene.solo = true   # single-player sandbox: M01-M03 behaviour
 	tree.root.add_child(scene)
 	player = scene.get_node("Player")
-	# Detach the human controller so the test owns the intent.
-	scene.get_node("HumanController").player = null
+	# Switch off TeamControl so the test owns the intent.
+	scene.get_node("TeamControl").active = false
 
 
 func after_each() -> void:

@@ -1,0 +1,49 @@
+{
+	"_comment": "Passing + catching tuning. Metres, seconds, m/s. F5 in-game hot-reloads.",
+
+	"quick_speed_min": 12.5,
+	"quick_speed_max": 15.5,
+	"long_speed_min": 15.5,
+	"long_speed_max": 19.5,
+	"min_flight": 0.25,
+	"max_flight": 1.8,
+	"catch_height": 1.15,
+
+	"skip_hold_time": 0.16,
+	"max_hold_time": 0.45,
+
+	"max_range": 26.0,
+	"min_lateral": 1.5,
+	"max_ahead": 4.0,
+
+	"err_max": 1.3,
+	"err_min": 0.15,
+	"err_long_mult": 1.5,
+	"err_speed_mult": 0.5,
+
+	"forward_tolerance": 0.6,
+	"space_pass_lateral": 8.0,
+	"space_pass_back": 2.0,
+	"passer_cooldown": 0.4,
+	"pass_timeout_margin": 1.0,
+
+	"catch_reach": 1.0,
+	"catch_reach_intended": 1.25,
+	"catch_sure_dist": 0.45,
+	"catch_min_height": 0.35,
+	"catch_max_height": 2.4,
+	"catch_base_min": 0.78,
+	"catch_base_max": 0.99,
+	"catch_speed_free": 18.0,
+	"catch_speed_full": 28.0,
+	"catch_speed_pen": 0.2,
+	"catch_behind_pen": 0.2,
+	"catch_height_pen": 0.15,
+	"catch_comfort_low": 0.8,
+	"catch_comfort_high": 1.7,
+
+	"knock_back_chance": 0.3,
+	"knock_speed": 2.0,
+	"knock_up": 1.8,
+	"catch_retry_cooldown": 0.5
+}

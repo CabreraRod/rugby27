@@ -113,11 +113,11 @@ func place(at: Vector3, reason: StringName) -> void:
 	released.emit(by, Vector3.ZERO, reason)
 
 
-## Knocks a loose ball (fumbled pickup).
-func knock(v: Vector3, by: RugbyPlayer) -> void:
+## Knocks a loose ball (fumbled pickup, dropped catch).
+func knock(v: Vector3, by: RugbyPlayer, reason: StringName = &"fumble") -> void:
 	last_touched_by = by
 	_go_loose(v)
-	released.emit(by, v, &"fumble")
+	released.emit(by, v, reason)
 
 
 ## Puts a loose ball at a position with a velocity (dev tools, restarts).

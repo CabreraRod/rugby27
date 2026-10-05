@@ -5,12 +5,16 @@ extends CanvasLayer
 ## Text panel with the controlled player's and the ball's state, plus
 ## world-space drawing: velocity (green), input intent (yellow), facing
 ## (cyan), plant flash (red), pickup reach (white), predicted ball flight
-## until the next ground contact (orange). Will grow to cover AI targets,
-## defensive/offside lines, ruck state, etc.
+## until the next ground contact (orange), support slots (blue) and the
+## pass in flight: aim point and the release line across the pitch (green =
+## legal, red = forward). Will grow to cover AI targets, defensive/offside
+## lines, ruck state, etc.
 
 var player: RugbyPlayer
 var ball: RugbyBall
 var possession: PossessionController
+var passing: PassingSystem
+var team_control: TeamControl
 
 var _label: Label
 var _lines: MeshInstance3D
@@ -97,7 +101,25 @@ func _draw_vectors(m: LocomotionModel) -> void:
 		_circle(Vector3(origin.x, 0.05, origin.z), ball.tuning.pickup_reach, Color(1, 1, 1, 0.6))
 		if ball.is_loose():
 			_draw_prediction()
+	_draw_passing()
 	_mesh.surface_end()
+
+
+func _draw_passing() -> void:
+	if team_control:
+		for runner in team_control.slots.keys():
+			var slot: Vector2 = team_control.slots[runner]
+			var rp: Vector3 = runner.get_global_transform_interpolated().origin
+			var sp := Vector3(slot.x, 0.06, slot.y)
+			_circle(sp, 0.4, Color("#4ea8ff"))
+			_line(Vector3(rp.x, 0.06, rp.z), sp, Color(0.3, 0.65, 1.0, 0.5))
+	if passing and passing.in_flight:
+		var a := passing.flight_aim
+		_circle(Vector3(a.x, 0.07, a.z), 0.55, Color("#ffd23f"))
+		_line(Vector3(a.x, 0.07, a.z), a, Color("#ffd23f"))
+		var x := passing.flight_release_pos.x
+		var col := Color("#ff5a5f") if passing.flight_forward else Color("#7cff6b")
+		_line(Vector3(x, 0.08, -FieldDimensions.HALF_WIDTH), Vector3(x, 0.08, FieldDimensions.HALF_WIDTH), col)
 
 
 func _ball_lines() -> Array:
@@ -114,6 +136,15 @@ func _ball_lines() -> Array:
 	]
 	if possession and ball.is_loose():
 		lines.append("pickup    chance now %.0f%%" % (possession.pickup_chance(player) * 100.0))
+	if passing:
+		lines.append("")
+		if passing.charging:
+			lines.append("pass      charging %s %.2fs %s" % ["LEFT" if passing.charge_side == PassTargeting.LEFT else "RIGHT", passing.charge_time, "LONG" if passing.is_long_charge() else "quick"])
+		if passing.in_flight:
+			var r := passing.flight_receiver.profile.short_label() if passing.flight_receiver else "space"
+			lines.append("pass      → %s  T %.2fs  fwd %.2f m/s %s" % [r, passing.flight_time, passing.flight_forward_speed, "FORWARD" if passing.flight_forward else "ok"])
+		elif not passing.charging:
+			lines.append("pass      -")
 	return lines
 
 
