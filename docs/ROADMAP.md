@@ -64,8 +64,10 @@ Scope proposal:
   only the controlled player.
 - Debug: defensive line, which player each defender marks.
 
-Decision to flag: whether the human can choose to control the defending
-team (switching sides on a turnover) from M05, or always the same team
-until game modes exist. Recommendation: the human always controls one
-team and switches *players* within it on turnovers — that's what a match
-needs.
+Decided (2026-10-05): **the human always controls the same team** and
+switches players within it on turnovers.
+
+From the Rugby 08 research (docs/RESEARCH_RUGBY08.md): the most common
+"too easy" complaint was weak AI defence giving fast backs space. M05's
+placeholder defence should already drift and track speed, and a soak
+should measure line breaks.

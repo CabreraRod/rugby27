@@ -45,3 +45,4 @@ godot --headless --path . --script res://tools/pass_soak.gd   # passing stats
 - [Gameplay](docs/GAMEPLAY.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Technical decisions](docs/TECHNICAL_DECISIONS.md)
+- [Research: what players say about Rugby 08](docs/RESEARCH_RUGBY08.md)
