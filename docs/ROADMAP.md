@@ -93,9 +93,12 @@ dive/fend/tackle; notices (BIG HIT, TACKLE BROKEN, MISSED, KNOCK-ON);
 debug tackle readout; real matches use random seeds. 111 tests.
 
 Measured (tools/tackle_soak.gd, 24 + 24 phases):
-- We attack: 35 tackles, 14 % broken, 11 % dominant.
-- They attack: 34 tackles, 18 % broken, 3 % dominant.
-Pro rugby misses ~10–15 % of tackles; dominant tackles ~10 %.
+- We attack: 54 tackles, 11 % broken, 11 % dominant, 4 spills.
+- They attack: 55 tackles, 22 % broken, 0 % dominant, 3 spills. (Most
+  of these are the soak's scripted human chasing the carrier from behind,
+  which the model makes weaker by design; M07's AI defence will tell.)
+Pro rugby misses ~10–15 % of tackles; dominant tackles ~10 %. Spills ran
+above the designed 2–8 % in both scenarios (7 in 109): watch in M07.
 
 Bugs found by measuring: tackle speeds were read after physics
 collisions had clipped them (players in contact read 0 m/s); defenders
