@@ -18,6 +18,7 @@ var possession: PossessionController
 var passing: PassingSystem
 var team_control: TeamControl
 var opp_control: TeamControl
+var tackles: TackleSystem
 
 var _label: Label
 var _lines: MeshInstance3D
@@ -122,7 +123,7 @@ func _draw_passing() -> void:
 		for asg in c.assignments:
 			var dp: Vector3 = asg.defender.get_global_transform_interpolated().origin
 			var tp := Vector3(asg.target.x, 0.06, asg.target.y)
-			var col := Color("#ff5a5f") if asg.role == &"pursue" else (Color("#c77dff") if asg.role == &"sweep" else Color("#ff9f9f"))
+			var col := Color("#ff5a5f") if asg.role == &"pursue" or asg.role == &"tackle" else (Color("#c77dff") if asg.role == &"sweep" else Color("#ff9f9f"))
 			_circle(tp, 0.35, col)
 			_line(Vector3(dp.x, 0.06, dp.z), tp, col)
 			if asg.mark:
@@ -156,6 +157,11 @@ func _ball_lines() -> Array:
 		lines.append("pickup    chance now %.0f%%" % (possession.pickup_chance(player) * 100.0))
 	if team_control:
 		lines.append("phase     %s" % TeamControl.Phase.keys()[team_control.phase])
+	if tackles and tackles.last_result:
+		var r := tackles.last_result
+		lines.append("tackle    %s by %s  p_break %.0f%%  p_dom %.0f%%  score %.2f  appr %.1f" % [TackleModel.Outcome.keys()[r.outcome], tackles.last_tackler.profile.short_label() if tackles.last_tackler else "-", r.p_break * 100.0, r.p_dominant * 100.0, r.score, r.approach])
+	if player and player.contact:
+		lines.append("moves     fend %.2f  sidestep %.2f" % [player.fend_timer, player.sidestep_timer])
 	if passing:
 		lines.append("")
 		if passing.charging:

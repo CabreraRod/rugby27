@@ -32,6 +32,7 @@ var _pitch := 0.0
 var _roll := 0.0
 var _ground_blend := 0.0
 var _carry_blend := 0.0
+var _dive_blend := 0.0
 var _number: Label3D
 
 
@@ -169,7 +170,11 @@ func _process(delta: float) -> void:
 	var grounded := 1.0 if player.state == RugbyPlayer.State.GROUNDED else 0.0
 	var ground_rate := 9.0 if grounded > 0.5 else 3.2
 	_ground_blend = lerpf(_ground_blend, grounded, 1.0 - exp(-ground_rate * delta))
-	_lean.rotation = Vector3(lerpf(_pitch, -1.45, _ground_blend), 0.0, _roll * (1.0 - _ground_blend))
+	# Dive: throw the body forward (blends into the grounded pose).
+	var dive := 1.0 if player.state == RugbyPlayer.State.DIVING else 0.0
+	_dive_blend = lerpf(_dive_blend, dive, 1.0 - exp(-16.0 * delta))
+	var pitch := lerpf(_pitch, -1.1, _dive_blend)
+	_lean.rotation = Vector3(lerpf(pitch, -1.45, _ground_blend), 0.0, _roll * (1.0 - _ground_blend))
 
 	# Stride cycle: frequency rises with speed, stride lengthens.
 	var stride_len := 1.1 + speed_t * 1.3
@@ -212,6 +217,16 @@ func _apply_action_pose() -> void:
 			var reach := 1.3 * (1.0 - t * 0.5)
 			_arm_l.rotation = Vector3(reach, 0.0, 0.25)
 			_arm_r.rotation = Vector3(reach, 0.0, -0.25)
+		&"dive", &"tackle":
+			# Arms wrapping forward.
+			_arm_l.rotation = Vector3(1.5, 0.0, 0.35)
+			_arm_r.rotation = Vector3(1.5, 0.0, -0.35)
+		&"fend":
+			# Free (left) arm locked straight out at the tackler.
+			var punch := sin(clampf(t * 1.6, 0.0, 1.0) * PI * 0.5)
+			_arm_l.rotation = Vector3(lerpf(0.2, 1.55, punch), 0.0, 0.05)
+		&"tackled":
+			_arm_l.rotation = Vector3(2.2, 0.0, -0.4)
 
 
 static func _facing_to_yaw(f: Vector2) -> float:

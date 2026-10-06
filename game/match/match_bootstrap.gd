@@ -31,6 +31,7 @@ var ball_tuning: BallTuning
 var pass_tuning: PassingTuning
 var support_tuning: SupportTuning
 var defence_tuning: DefenceTuning
+var tackle_tuning: TackleTuning
 var squad: Array[PlayerProfile] = []
 var team := Team.new()
 var team_data := {}
@@ -42,6 +43,7 @@ var lineup_spots := {}
 var ball: RugbyBall
 var possession: PossessionController
 var passing: PassingSystem
+var tackles: TackleSystem
 var team_control: TeamControl
 var opp_control: TeamControl
 var camera: BroadcastCamera
@@ -60,6 +62,7 @@ func _ready() -> void:
 	pass_tuning = PassingTuning.load_default()
 	support_tuning = SupportTuning.load_default()
 	defence_tuning = DefenceTuning.load_default()
+	tackle_tuning = TackleTuning.load_default()
 	squad = PlayerProfile.load_squad(SQUAD_PATH)
 	if squad.is_empty():
 		squad.append(PlayerProfile.from_dict({"name": "Fallback", "number": 1}))
@@ -94,6 +97,11 @@ func _ready() -> void:
 	possession.setup(ball, ball_tuning, everyone)
 	possession.pass_tuning = pass_tuning
 	add_child(possession)
+
+	tackles = TackleSystem.new()
+	tackles.name = "Tackles"
+	tackles.setup(ball, possession, everyone, tackle_tuning)
+	add_child(tackles)
 
 	passing = PassingSystem.new()
 	passing.name = "Passing"
@@ -132,6 +140,7 @@ func _ready() -> void:
 	debug_overlay.passing = passing
 	debug_overlay.team_control = team_control
 	debug_overlay.opp_control = opp_control
+	debug_overlay.tackles = tackles
 	add_child(debug_overlay)
 	debug_overlay.attach_world(self)
 
@@ -147,12 +156,25 @@ func _ready() -> void:
 	possession.catch_failed.connect(func(_p, _c, knock_on: bool):
 		hud.notify("KNOCK-ON" if knock_on else "DROPPED", Color("#f5a524"), 1.0))
 	ball.carrier_changed.connect(_on_carrier_changed_notice)
+	tackles.tackle_made.connect(_on_tackle)
+	tackles.dive_missed.connect(func(p: RugbyPlayer):
+		if p.team == team:
+			hud.notify("MISSED", Color("#f5a524"), 0.8))
 	hud.team_control = team_control
 	passing.pass_thrown.connect(func(_p, _r, forward: bool):
 		if forward:
 			hud.notify("FORWARD PASS", Color("#ff5a5f"), 1.2))
 
+	# Launched as the game: every match gets its own luck. Embedded in tests
+	# or tools (not the current scene) the fixed seeds keep runs reproducible.
+	if get_tree().current_scene == self:
+		randomize_seeds()
 	reset_play()
+
+
+func randomize_seeds() -> void:
+	for r in [ball.rng, possession.rng, passing.rng, tackles.rng]:
+		r.randomize()
 
 
 ## Player node for the old single-player API (sandbox mode / tests).
@@ -162,6 +184,7 @@ func controlled_player() -> RugbyPlayer:
 
 func reset_play() -> void:
 	possession.clear_cooldowns()
+	tackles.clear()
 	for p in team.players + opp.players:
 		p.reset_to(lineup_spots[p], p.team.attack())
 		p.set_role(RugbyPlayer.Role.NEUTRAL)
@@ -211,6 +234,19 @@ func _profile_by_number(roster: Array[PlayerProfile], n: int) -> PlayerProfile:
 			return roster[i]
 	push_warning("No squad player with number %d; using %s" % [n, roster[0].display_name])
 	return roster[0]
+
+
+func _on_tackle(_tackler: RugbyPlayer, carrier: RugbyPlayer, r: TackleModel.Result) -> void:
+	match r.outcome:
+		TackleModel.Outcome.BROKEN:
+			hud.notify("TACKLE BROKEN", Color("#7cff6b") if carrier.team == team else Color("#ff8a8f"), 0.9)
+		TackleModel.Outcome.DOMINANT:
+			hud.notify("BIG HIT", Color("#ffd23f"), 0.9)
+			camera.shake(0.6)
+		_:
+			camera.shake(0.25)
+	if r.spill:
+		hud.notify("KNOCK-ON", Color("#f5a524"), 1.0)
 
 
 ## Turnover notices (who had the ball last vs. who has it now).
@@ -271,6 +307,10 @@ func reload_tuning() -> void:
 	possession.pass_tuning = pass_tuning
 	passing.tuning = pass_tuning
 	defence_tuning = DefenceTuning.load_default()
+	tackle_tuning = TackleTuning.load_default()
+	tackles.tuning = tackle_tuning
+	for p in team.players + opp.players:
+		p.contact = tackle_tuning
 	for c in [team_control, opp_control]:
 		if c:
 			c.support = support_tuning

@@ -10,8 +10,8 @@ stop for review. No skipping ahead.
 | 03 | Ball + possession | ✅ | Ball is a physics object; pick up, carry, drop, bounce, out of bounds |
 | 04 | Passing | ✅ | A→B→C→D chain without fighting controls; forward pass detection |
 | 05 | Multiple players | ✅ | Second team, switching on defence, camera focus solver |
-| 06 | Basic AI | ⏭ next | Real attacking/defensive decisions replacing the placeholders |
-| 07 | Tackling | | Tackle outcome from speed/angle/strength/timing; break tackles |
+| 06 | Tackling (swapped with AI) | ✅ | Tackle outcome from speed/angle/strength/timing; break tackles |
+| 07 | Basic AI (swapped with tackling) | ⏭ next | Real attacking/defensive decisions replacing the placeholders |
 | 08 | Rucks | | Tackle → ground → ruck → ball available, contest, turnover |
 | 09 | Kicking | | Punt, grubber, chip, high, touch-finder; kick chase |
 | 10 | Scoring | | Tries, conversions, drop goals, penalty goals |
@@ -74,8 +74,35 @@ Known placeholder behaviour: without tackles the pursuer stops a
 carrier who runs straight into him (body contact). Go round him; M07
 replaces this with tackles.
 
-## Milestone 06 — Basic AI (next)
+## Milestone 06 — Tackling ✅ (swapped with Basic AI on 2026-10-05)
 
+Swapped at the user's decision: AI decisions depend on contact, so the
+AI is built against real tackling.
+
+Delivered: data-driven player weights; pure TackleModel (mass^0.7,
+bracing + closing speed, tackling skill vs. strength, head-on/side/behind,
+dive, fend, sidestep) with outcomes HELD / DOMINANT / BROKEN and tackle
+spills; contact = steering into the carrier (Rugby 08 style); dive tackle
+(extra reach, a miss leaves you on the floor); fend (X) and sidestep
+(right-stick flick) with cooldowns; tackled players go down sliding
+forward (or driven back on a dominant hit); ball placed with a
+protection window for the tackled team (placeholder until M08 rucks);
+defenders commit into the tackle in the last 3 m; AI carriers fend;
+control moves off a grounded player; camera shake on impact; poses for
+dive/fend/tackle; notices (BIG HIT, TACKLE BROKEN, MISSED, KNOCK-ON);
+debug tackle readout; real matches use random seeds. 111 tests.
+
+Measured (tools/tackle_soak.gd, 24 + 24 phases):
+- We attack: 35 tackles, 14 % broken, 11 % dominant.
+- They attack: 34 tackles, 18 % broken, 3 % dominant.
+Pro rugby misses ~10–15 % of tackles; dominant tackles ~10 %.
+
+Bugs found by measuring: tackle speeds were read after physics
+collisions had clipped them (players in contact read 0 m/s); defenders
+committing to the tackle were backing off with the carrier; soaks shared
+one tackle seed (every first tackle was a knock-on).
+
+## Milestone 07 — Basic AI (next)
 Scope proposal:
 - Attacking AI with decisions: run lines into space (not just slots),
   pass/carry choice from space and defenders, depth, inside/outside
@@ -86,7 +113,7 @@ Scope proposal:
 - Soaks: AI vs AI matches measuring metres, breaks, turnovers, pass
   completion — the numbers must move when the AI improves.
 
-Open question: M06 before M07 (tackling) means the AI can't yet tackle,
-and attacking decisions depend heavily on contact. Option: swap M06 and
-M07 so the AI is built against real contact. **Recommendation: swap**
-(tackling first). Decision for the user.
+Builds on real contact now: carry vs. pass decisions from defender
+distance and break odds (TackleModel.evaluate is pure and cheap), defenders
+choosing who to tackle and when to dive, support runners arriving at the
+tackle for the M08 ruck.

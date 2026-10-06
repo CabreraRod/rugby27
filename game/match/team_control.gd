@@ -146,6 +146,8 @@ func _ai_carry(p: RugbyPlayer) -> SupportRunner.Intent:
 	var defenders: Array[RugbyPlayer] = []
 	if opponents:
 		defenders = opponents.players
+	if p.contact and AttackBrain.wants_fend(p, defenders, team.attack(), p.contact.ai_fend_dist):
+		p.try_fend()
 	var side := AttackBrain.choose_pass(p, passing, defenders, _held_time, defence)
 	if side >= 0 and not passing.charging:
 		passing.throw(p, side, false)
@@ -187,6 +189,9 @@ func _drive_defence() -> void:
 	if controlled:
 		_apply(controlled, human.read_intent())
 		controlled.set_role(RugbyPlayer.Role.DEFENDER)
+		# Don't leave the human on a player lying on the floor.
+		if controlled.state == RugbyPlayer.State.GROUNDED and controlled.planar_position().distance_to(Vector2(b.x, b.z)) > 3.0:
+			switch_to_nearest_ball(true)
 
 
 # --- Loose ball --------------------------------------------------------------------
@@ -209,6 +214,10 @@ func _drive_loose() -> void:
 		if p != controlled and p != chaser:
 			runners.append(p)
 	slots = SupportRunner.assign_slots(b, team, runners, support)
+	# Our tackled player can't play the ball: give the human the nearest
+	# player on their feet (the M08 ruck will bring the scrum-half in).
+	if is_human() and controlled and not controlled.is_controllable() and possession.protected_team == team:
+		switch_to_nearest_ball(true)
 	for p in team.players:
 		if p.role == RugbyPlayer.Role.DEFENDER:
 			p.set_role(RugbyPlayer.Role.NEUTRAL)
@@ -238,8 +247,16 @@ func _read_buttons() -> void:
 		return
 	if ball.carrier == controlled:
 		_read_pass_input()
+		if Input.is_action_just_pressed("fend"):
+			controlled.try_fend()
+		if Input.is_action_just_pressed("sidestep_left"):
+			controlled.try_sidestep(-1.0)
+		elif Input.is_action_just_pressed("sidestep_right"):
+			controlled.try_sidestep(1.0)
 		return
 	_input_charge = false
+	if Input.is_action_just_pressed("dive_tackle") and phase == Phase.DEFEND:
+		controlled.try_dive()
 	# Not carrying: the pass buttons switch to the teammate nearest the ball.
 	for i in PASS_ACTIONS.size():
 		if Input.is_action_just_pressed(PASS_ACTIONS[i]):
@@ -268,6 +285,8 @@ func switch_to_nearest_ball(exclude_current: bool) -> void:
 	var best_d := INF
 	for p in team.players:
 		if exclude_current and p == controlled:
+			continue
+		if p.state == RugbyPlayer.State.GROUNDED or p.state == RugbyPlayer.State.GETTING_UP:
 			continue
 		var d := p.planar_position().distance_to(b)
 		if d < best_d:

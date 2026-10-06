@@ -23,6 +23,13 @@ func _enter_tree() -> void:
 	_add("pass_left", [KEY_Q], [JOY_BUTTON_LEFT_SHOULDER], [], 0.5)
 	_add("pass_right", [KEY_E], [JOY_BUTTON_RIGHT_SHOULDER], [], 0.5)
 
+	# Ball carrier moves.
+	_add("fend", [KEY_V], [JOY_BUTTON_X], [], 0.5)
+	_add("sidestep_left", [KEY_Z], [], [[JOY_AXIS_RIGHT_X, -1.0]], 0.7)
+	_add("sidestep_right", [KEY_X], [], [[JOY_AXIS_RIGHT_X, 1.0]], 0.7)
+	# Defence.
+	_add("dive_tackle", [KEY_SPACE], [JOY_BUTTON_A], [], 0.5)
+
 	# Camera.
 	_add("camera_toggle", [KEY_C], [JOY_BUTTON_BACK], [], 0.5)
 
@@ -33,7 +40,7 @@ func _enter_tree() -> void:
 	_add("dev_cycle_role", [KEY_B], [], [], 0.5)
 	_add("dev_next_profile", [KEY_N], [JOY_BUTTON_Y], [], 0.5)
 	_add("dev_reload_tuning", [KEY_F5], [], [], 0.5)
-	_add("dev_drop_ball", [KEY_F], [JOY_BUTTON_X], [], 0.5)
+	_add("dev_drop_ball", [KEY_F], [], [], 0.5)
 	_add("dev_toss_ball", [KEY_T], [JOY_BUTTON_DPAD_DOWN], [], 0.5)
 	_add("dev_sandbox", [KEY_F2], [JOY_BUTTON_DPAD_UP], [], 0.5)
 

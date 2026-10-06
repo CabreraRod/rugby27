@@ -11,7 +11,8 @@ signal role_changed(new_role: Role)
 
 enum State {
 	LOCOMOTION,   ## Running / standing, fully controllable.
-	GROUNDED,     ## On the ground (dive now; tackled from Milestone 07).
+	DIVING,       ## Dive tackle lunge: committed, no steering.
+	GROUNDED,     ## On the ground (tackled, tackler, missed dive, dev key).
 	GETTING_UP,   ## Recovering to feet, no control.
 }
 
@@ -27,6 +28,8 @@ const CAPSULE_HEIGHT := 1.86
 
 var profile: PlayerProfile
 var tuning: MovementTuning
+## Contact/move tuning (fend, sidestep, dive). Null in movement-only tests.
+var contact: TackleTuning
 var stamina: StaminaModel
 var stats: LocomotionStats
 
@@ -35,6 +38,10 @@ var role: Role = Role.NEUTRAL
 
 ## Ground-plane velocity (x = world X, y = world Z).
 var planar_velocity := Vector2.ZERO
+## Velocity this tick BEFORE collisions clipped it: the momentum a player
+## brings into contact (two players pushing into each other read ~0 after
+## move_and_slide). Used by tackles.
+var momentum_velocity := Vector2.ZERO
 ## Ground-plane acceleration measured last tick (for visuals/debug).
 var planar_accel := Vector2.ZERO
 ## Body facing on the ground plane (unit). Starts facing +X (attacking right).
@@ -49,6 +56,13 @@ var is_controlled := false
 var action: StringName = &""
 var action_timer := 0.0
 var action_duration := 0.0
+
+# Carrier moves / dive (timers in seconds).
+var fend_timer := 0.0
+var sidestep_timer := 0.0
+var _fend_cd := 0.0
+var _sidestep_cd := 0.0
+var _dive_dir := Vector2.ZERO
 
 var team_colors := {
 	"jersey": Color("#1f4fa3"),
@@ -111,9 +125,15 @@ func simulate(dt: float) -> void:
 		action_timer -= dt
 		if action_timer <= 0.0:
 			action = &""
+	fend_timer = maxf(0.0, fend_timer - dt)
+	sidestep_timer = maxf(0.0, sidestep_timer - dt)
+	_fend_cd = maxf(0.0, _fend_cd - dt)
+	_sidestep_cd = maxf(0.0, _sidestep_cd - dt)
 	match state:
 		State.LOCOMOTION:
 			_tick_locomotion(dt)
+		State.DIVING:
+			_tick_diving(dt)
 		State.GROUNDED:
 			_tick_grounded(dt)
 		State.GETTING_UP:
@@ -126,6 +146,7 @@ func simulate(dt: float) -> void:
 		velocity.y -= tuning.gravity * dt
 	velocity.x = planar_velocity.x
 	velocity.z = planar_velocity.y
+	momentum_velocity = planar_velocity
 	move_and_slide()
 	# Collisions may have changed our velocity; keep the simulation honest.
 	planar_velocity = Vector2(velocity.x, velocity.z)
@@ -157,6 +178,16 @@ func _tick_locomotion(dt: float) -> void:
 	facing = LocomotionModel.turn_facing(facing, face_toward, planar_velocity.length(), stats.sprint_top, tuning, dt)
 
 
+func _tick_diving(dt: float) -> void:
+	is_sprinting = false
+	var speed := planar_velocity.length()
+	planar_velocity = _dive_dir * maxf(0.0, speed - tuning.ground_slide_decel * 0.5 * dt)
+	_state_timer -= dt
+	if _state_timer <= 0.0:
+		# Lunge over without contact: you are on the floor.
+		go_to_ground(contact.dive_miss_ground if contact else tuning.ground_time, planar_velocity * 0.4, true)
+
+
 func _tick_grounded(dt: float) -> void:
 	is_sprinting = false
 	stamina.step(false, false, 0.0, tuning, dt)
@@ -178,12 +209,55 @@ func _tick_getting_up(dt: float) -> void:
 		_set_state(State.LOCOMOTION)
 
 
-## Puts the player on the ground (dev action now; tackles/rucks later).
-func go_to_ground() -> void:
-	if state != State.LOCOMOTION:
+## Puts the player on the ground for `time` seconds (default: dev ground
+## time) sliding with `slide`. `force` also interrupts a dive.
+func go_to_ground(time: float = -1.0, slide: Variant = null, force: bool = false) -> void:
+	if state != State.LOCOMOTION and not (force and state == State.DIVING):
 		return
+	if slide != null:
+		planar_velocity = slide
 	_set_state(State.GROUNDED)
-	_state_timer = tuning.ground_time
+	_state_timer = time if time >= 0.0 else tuning.ground_time
+
+
+## Dive tackle: commit to a lunge along the current facing.
+func try_dive() -> bool:
+	if state != State.LOCOMOTION or contact == null or role == Role.BALL_CARRIER:
+		return false
+	_dive_dir = facing
+	planar_velocity = facing * maxf(contact.dive_speed, planar_velocity.length())
+	_set_state(State.DIVING)
+	_state_timer = contact.dive_window
+	play_action(&"dive", contact.dive_window + 0.2)
+	return true
+
+
+## Fend (hand-off): for a short window, front/side tackles meet more resistance.
+func try_fend() -> bool:
+	if contact == null or state != State.LOCOMOTION or role != Role.BALL_CARRIER or _fend_cd > 0.0:
+		return false
+	fend_timer = contact.fend_window
+	_fend_cd = contact.fend_cooldown
+	play_action(&"fend", contact.fend_window + 0.1)
+	return true
+
+
+## Sidestep: lateral burst relative to facing (side -1 = left, +1 = right).
+## Wrong-foots tacklers for a short window. Costs stamina.
+func try_sidestep(side: float) -> bool:
+	if contact == null or state != State.LOCOMOTION or _sidestep_cd > 0.0:
+		return false
+	var right := Vector2(-facing.y, facing.x)
+	planar_velocity += right * signf(side) * contact.sidestep_speed
+	stamina.value = maxf(0.0, stamina.value - contact.sidestep_stamina)
+	sidestep_timer = contact.sidestep_window
+	_sidestep_cd = contact.sidestep_cooldown
+	play_action(&"sidestep_left" if side < 0.0 else &"sidestep_right", 0.3)
+	return true
+
+
+func is_diving() -> bool:
+	return state == State.DIVING
 
 
 ## Cosmetic action cue (pass, catch). Never blocks movement.

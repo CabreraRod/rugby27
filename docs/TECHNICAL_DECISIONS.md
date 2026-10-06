@@ -176,6 +176,36 @@ over the near touchline).
 Neighbouring PCG seeds produced correlated first draws (5/12 runs hitting
 an 8 % roll). All soaks now seed with `hash("…-%d" % run)`.
 
+## TD-024 Tackling before AI (milestone swap)
+
+User decision (2026-10-05): M06 tackling, M07 basic AI.
+
+## TD-025 Tackle = contact + pure probabilistic model
+
+- **Why:** accessible (Rugby 08's "steer into them"), readable causes
+  (mass, speed, angle, skill, fend/sidestep/dive), tunable in data, and
+  calibrated against real tackle success rates by a soak.
+- **Trade-off:** outcomes are dice rolls on top of physics, not ragdoll
+  physics. Gameplay speed stays high (spec §9).
+
+## TD-026 Momentum read before collisions
+
+`move_and_slide` clips the velocity of bodies pushing into each other, so
+contact read ~0 m/s. Players store `momentum_velocity` before the slide;
+tackles use it.
+
+## TD-027 Placement protection as a ruck placeholder
+
+Without rucks, opponents arriving at the placed ball won it back after
+most tackles (seed bug aside, protection of 0.8 s was too short). 2.5 s
+for the tackled team until M08.
+
+## TD-028 Random seeds in real play
+
+Fixed seeds made every match identical (the first tackle in a dev match
+was always a knock-on). The match scene randomizes when it is the current
+scene; tests/tools keep fixed or hashed seeds.
+
 ## Open questions / risks
 
 - **Movement playtest still pending.** M03/M04 started at the user's
@@ -185,6 +215,7 @@ an 8 % roll). All soaks now seed with `hash("…-%d" % run)`.
 
 - **Feel can only be partly verified by tests.** Numbers guarantee
   consistency; "satisfying" needs hands-on playtesting with keyboard and pad.
-- **Animation:** procedural limbs will not scale to tackles/rucks/scrums.
-  Needs a decision on animation sourcing (mocap packs with suitable licence
-  vs. hand-keyed vs. procedural + physical animation) before Milestone 07.
+- **Animation:** procedural limbs now carry tackles (dive/wrap/fall poses)
+  but will not scale to rucks/scrums. Animation sourcing (licensed mocap
+  vs. hand-keyed vs. procedural + physical animation) must be decided
+  before M08/M13.

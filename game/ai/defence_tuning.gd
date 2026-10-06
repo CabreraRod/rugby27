@@ -17,8 +17,12 @@ var gain := 1.9
 var settle_dist := 0.35
 ## The carrier's defender aims where the carrier will be this far ahead (s).
 var pursue_lead := 0.3
-## ... and stays this far in front of them (no tackling until M07).
-var shadow_gap := 0.5
+## ... offset this far in front of them (0 = go through them: the tackle).
+var shadow_gap := 0.0
+## Within this distance the pursuer commits: drives into the carrier with
+## engage_speed of closing pace on top of matching the carrier (the tackle).
+var engage_dist := 3.0
+var engage_speed := 3.0
 ## If the human defender is this close to the carrier, the AI doesn't also
 ## send a pursuer.
 var human_marks_carrier_dist := 4.0

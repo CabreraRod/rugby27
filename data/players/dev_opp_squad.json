@@ -1,17 +1,17 @@
 {
 	"_comment": "Fictional development opponents.",
 	"players": [
-		{ "name": "Owen Pritchard", "number": 9, "position": "ScrumHalf",
+		{ "name": "Owen Pritchard", "number": 9, "position": "ScrumHalf", "weight_kg": 80,
 		  "attributes": { "speed": 79, "acceleration": 86, "strength": 62, "passing": 88, "kicking": 76, "tackling": 70, "handling": 86, "decision_making": 82, "stamina": 88 } },
-		{ "name": "Hugo Marchetti", "number": 10, "position": "FlyHalf",
+		{ "name": "Hugo Marchetti", "number": 10, "position": "FlyHalf", "weight_kg": 88,
 		  "attributes": { "speed": 80, "acceleration": 82, "strength": 68, "passing": 87, "kicking": 90, "tackling": 70, "handling": 86, "decision_making": 86, "stamina": 84 } },
-		{ "name": "Sione Taufa", "number": 12, "position": "InsideCentre",
+		{ "name": "Sione Taufa", "number": 12, "position": "InsideCentre", "weight_kg": 102,
 		  "attributes": { "speed": 79, "acceleration": 78, "strength": 90, "passing": 74, "kicking": 60, "tackling": 88, "handling": 80, "decision_making": 76, "stamina": 82 } },
-		{ "name": "Callum Reid", "number": 13, "position": "OutsideCentre",
+		{ "name": "Callum Reid", "number": 13, "position": "OutsideCentre", "weight_kg": 97,
 		  "attributes": { "speed": 86, "acceleration": 84, "strength": 78, "passing": 75, "kicking": 55, "tackling": 84, "handling": 82, "decision_making": 77, "stamina": 84 } },
-		{ "name": "Nico van Wyk", "number": 11, "position": "Wing",
+		{ "name": "Nico van Wyk", "number": 11, "position": "Wing", "weight_kg": 92,
 		  "attributes": { "speed": 92, "acceleration": 90, "strength": 70, "passing": 66, "kicking": 58, "tackling": 72, "handling": 80, "decision_making": 72, "stamina": 80 } },
-		{ "name": "Daniel Moreau", "number": 15, "position": "FullBack",
+		{ "name": "Daniel Moreau", "number": 15, "position": "FullBack", "weight_kg": 94,
 		  "attributes": { "speed": 87, "acceleration": 85, "strength": 72, "passing": 79, "kicking": 86, "tackling": 76, "handling": 88, "decision_making": 83, "stamina": 85 } }
 	]
 }

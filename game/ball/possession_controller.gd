@@ -28,6 +28,10 @@ var rng := RandomNumberGenerator.new()
 var last_chance := {}
 
 var _cooldown := {}   # instance id -> seconds
+## After a tackle only this team may pick the ball up (placeholder for the
+## M08 ruck), while _protect_timer > 0.
+var protected_team: Team
+var _protect_timer := 0.0
 
 
 func setup(p_ball: RugbyBall, p_tuning: BallTuning, p_players: Array[RugbyPlayer], seed_value: int = 8) -> void:
@@ -49,6 +53,10 @@ func _physics_process(delta: float) -> void:
 		_cooldown[id] -= delta
 		if _cooldown[id] <= 0.0:
 			_cooldown.erase(id)
+	if _protect_timer > 0.0:
+		_protect_timer -= delta
+		if _protect_timer <= 0.0:
+			protected_team = null
 	if ball == null or not ball.is_loose():
 		return
 	var airborne := pass_tuning != null and not ball.on_ground and ball.global_position.y > pass_tuning.catch_min_height
@@ -56,6 +64,8 @@ func _physics_process(delta: float) -> void:
 	var best_d := INF
 	for p in players:
 		if not p.is_controllable() or _cooldown.has(p.get_instance_id()):
+			continue
+		if protected_team and p.team != protected_team and not airborne:
 			continue
 		if airborne:
 			# A pass in flight: the passer's teammates let it through to the
@@ -161,12 +171,30 @@ func attempt_catch(p: RugbyPlayer) -> bool:
 	return false
 
 
+## Only `team` may gather the loose ball for `seconds` (tackle placement).
+func protect(team: Team, seconds: float) -> void:
+	protected_team = team
+	_protect_timer = seconds
+
+
+## The carrier loses the ball forward in a tackle (knock-on).
+func spill(p: RugbyPlayer) -> void:
+	if ball.carrier != p:
+		return
+	var f := p.team.attack() if p.team else p.facing
+	var v := Vector3(f.x * 2.5 + p.planar_velocity.x * 0.4, 1.4, f.y * 2.5 + p.planar_velocity.y * 0.4)
+	_cooldown[p.get_instance_id()] = pass_tuning.catch_retry_cooldown if pass_tuning else 0.5
+	ball.release(v, &"knock_on")
+
+
 func set_cooldown(p: RugbyPlayer, seconds: float) -> void:
 	_cooldown[p.get_instance_id()] = seconds
 
 
 func clear_cooldowns() -> void:
 	_cooldown.clear()
+	protected_team = null
+	_protect_timer = 0.0
 
 
 ## Dev / future knock-on: carrier loses the ball forward.

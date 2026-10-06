@@ -1,0 +1,56 @@
+{
+	"_comment": "Tackling + carrier moves. Metres, seconds, m/s, kg. Calibrated so a typical back-on-back tackle is broken ~9% of the time (pro rugby misses ~10-15%).",
+
+	"contact_radius": 0.85,
+	"tackler_cooldown": 0.5,
+	"retackle_immunity": 0.6,
+
+	"mass_ref": 100.0,
+	"mass_exp": 0.7,
+	"brace": 4.0,
+	"speed_weight": 0.6,
+	"skill_min": 0.75,
+	"skill_max": 1.25,
+	"strength_min": 0.8,
+	"strength_max": 1.2,
+	"headon_mult": 1.0,
+	"side_mult": 1.05,
+	"behind_mult": 0.85,
+
+	"break_steep": 3.2,
+	"break_center": -0.85,
+	"break_min": 0.03,
+	"break_max": 0.85,
+	"dominant_start": -0.25,
+	"dominant_slope": 0.8,
+	"dominant_max": 0.6,
+
+	"tackled_ground": 1.3,
+	"tackler_ground": 0.8,
+	"dominant_tackler_ground": 0.45,
+	"broken_tackler_ground": 0.75,
+	"broken_keep": 0.65,
+	"normal_slide": 0.35,
+	"dominant_slide": -0.3,
+	"spill_dominant": 0.08,
+	"spill_normal": 0.02,
+	"placement_protect": 2.5,
+
+	"dive_reach": 2.0,
+	"dive_window": 0.35,
+	"dive_speed": 7.5,
+	"dive_power_mult": 1.15,
+	"dive_miss_ground": 1.1,
+
+	"fend_window": 0.35,
+	"fend_cooldown": 1.2,
+	"fend_mult": 1.35,
+
+	"sidestep_speed": 3.5,
+	"sidestep_window": 0.25,
+	"sidestep_cooldown": 0.9,
+	"sidestep_power_mult": 0.7,
+	"sidestep_stamina": 6.0,
+
+	"ai_fend_dist": 1.6
+}

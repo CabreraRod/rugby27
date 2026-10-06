@@ -73,20 +73,19 @@ func test_line_comes_up_to_meet_the_attack() -> void:
 		check(d.global_position.x > _p(team, 9).global_position.x - 1.0, "O%d stays on its side of the carrier" % d.profile.number)
 
 
-func test_carrier_gets_pressured() -> void:
+func test_carrier_running_straight_gets_tackled() -> void:
+	var tackled := [null]
+	scene.tackles.tackle_made.connect(func(_d, c, r): if tackled[0] == null: tackled[0] = r)
 	_stick(Vector2.RIGHT)
-	await _ticks(150)
-	var carrier := ball.carrier
-	check(carrier != null and carrier.team == team, "still carrying")
-	var nearest := INF
-	for d in opp.players:
-		nearest = minf(nearest, d.planar_position().distance_to(carrier.planar_position()))
-	check(nearest < 3.0, "a defender is on the carrier within 2.5 s (%.1f m)" % nearest)
+	await _ticks(180)
+	check(tackled[0] != null, "running straight at the defence ends in a tackle within 3 s")
 
 
 func test_line_drifts_with_the_attack() -> void:
 	# The whole attack shifts toward its left (-Z): the carrier runs on a
 	# diagonal and the support line follows. Defenders must slide with it.
+	# (Structure only: tackling is switched off for this test.)
+	scene.tackles.set_physics_process(false)
 	_stick(Vector2.RIGHT)
 	await _ticks(30)
 	var team_before := _mean_z(team)
@@ -106,7 +105,11 @@ func test_defence_never_behind_own_try_line() -> void:
 		if ball.state == RugbyBall.State.DEAD:
 			break
 	for asg in opp_control.assignments:
-		check(asg.target.x <= FieldDimensions.HALF_LENGTH, "O%d target x %.1f beyond its try line" % [asg.defender.profile.number, asg.target.x])
+		# The line holds its try line; only the defender making the tackle
+		# follows the carrier into the in-goal (stopping the try).
+		if asg.role == &"tackle":
+			continue
+		check(asg.target.x <= FieldDimensions.HALF_LENGTH, "O%d (%s) target x %.1f beyond its try line" % [asg.defender.profile.number, asg.role, asg.target.x])
 
 
 # --- turnovers ---------------------------------------------------------------------

@@ -3,10 +3,10 @@
 A modern spiritual successor to classic console rugby. Original code, original
 procedural assets. Built incrementally: every milestone is playable.
 
-**Current state:** Milestone 05 — 6 v 6 against an AI team. You attack
-with a backline that runs with you and pass left/right; their line comes
-up to meet you. Lose the ball and you defend, switching players with
-LB/RB. No tackles yet (M07). F2 switches to a single-player sandbox.
+**Current state:** Milestone 06 — 6 v 6 against an AI team with real
+tackling. Run, pass, fend and sidestep; on defence run into the carrier
+to tackle or dive with A. Weight, speed, angle and skill decide the
+outcome. F2 switches to a single-player sandbox.
 
 ## Run
 
@@ -23,14 +23,16 @@ LB/RB. No tackles yet (M07). F2 switches to a single-player sandbox.
 | Sprint | Shift | RT |
 | Pass left / right (tap = quick, hold = long) | Q / E | LB / RB |
 | Defending: switch player | Q / E | LB / RB |
+| Defending: tackle / dive tackle | run into the carrier / Space | run into the carrier / A |
+| Carrying: fend / sidestep | V / Z, X | X / right-stick flick |
 | Camera side / end-on | C | Back |
 | Debug overlay | F1 | — |
 | Sandbox (one player) ↔ team mode | F2 | D-pad up |
 | Pick up the ball | run over it | run over it |
-| Dev: drop ball / toss ball | F / T | X / D-pad down |
+| Dev: drop ball / toss ball | F / T | — / D-pad down |
 | Dev: ground / role / next player / reset / reload tuning | G / B / N / R / F5 | B / — / Y / Start / — |
 
-All feel lives in `data/tuning/*.json` (movement, ball, passing, support, defence) —
+All feel lives in `data/tuning/*.json` (movement, ball, passing, support, defence, tackle) —
 edit while the game runs and press **F5** to hot-reload. Pass directions are
 the attacker's left/right, not the screen's.
 
@@ -40,6 +42,7 @@ the attacker's left/right, not the screen's.
 ./tools/run_tests.sh            # uses $GODOT or `godot` on PATH
 godot --headless --path . --script res://tools/pass_soak.gd     # passing stats
 godot --headless --path . --script res://tools/defence_soak.gd  # defence stats
+godot --headless --path . --script res://tools/tackle_soak.gd   # tackle stats
 ```
 
 ## Docs

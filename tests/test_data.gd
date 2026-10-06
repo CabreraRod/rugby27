@@ -8,12 +8,13 @@ func test_shipped_tuning_matches_code_defaults() -> void:
 	_compare(PassingTuning.new(), PassingTuning.load_default(), "passing.json")
 	_compare(SupportTuning.new(), SupportTuning.load_default(), "support.json")
 	_compare(DefenceTuning.new(), DefenceTuning.load_default(), "defence.json")
+	_compare(TackleTuning.new(), TackleTuning.load_default(), "tackle.json")
 
 
 func test_shipped_tuning_has_every_key() -> void:
 	for pair in [[MovementTuning.new(), MovementTuning.DEFAULT_PATH], [BallTuning.new(), BallTuning.DEFAULT_PATH],
 			[PassingTuning.new(), PassingTuning.DEFAULT_PATH], [SupportTuning.new(), SupportTuning.DEFAULT_PATH],
-			[DefenceTuning.new(), DefenceTuning.DEFAULT_PATH]]:
+			[DefenceTuning.new(), DefenceTuning.DEFAULT_PATH], [TackleTuning.new(), TackleTuning.DEFAULT_PATH]]:
 		var data := JsonLoader.load_dict(pair[1])
 		for key in pair[0].property_names().keys():
 			check(data.has(key), "%s is missing '%s'" % [pair[1].get_file(), key])
@@ -40,6 +41,14 @@ func test_dev_lineup_numbers_exist_in_squad() -> void:
 		opp_numbers.append(p.number)
 	for e in opp.get("lineup", []):
 		check(opp_numbers.has(int(e["number"])), "opponent lineup #%d has no squad entry" % int(e["number"]))
+
+
+func test_weights_loaded() -> void:
+	var squad := PlayerProfile.load_squad("res://data/players/dev_squad.json")
+	for p in squad:
+		check(p.weight_kg > 60.0 and p.weight_kg < 140.0, "%s weight %.0f kg" % [p.display_name, p.weight_kg])
+	var no_weight := PlayerProfile.from_dict({"position": "TightheadProp"})
+	check(no_weight.weight_kg > 110.0, "missing weight falls back to a position default")
 
 
 func test_dev_squad_loads() -> void:

@@ -43,9 +43,17 @@ static func assign(defenders: Array[RugbyPlayer], human: RugbyPlayer, attackers:
 			a.defender = best
 			a.role = &"pursue"
 			a.mark = carrier
-			var lead := carrier.planar_position() + carrier.planar_velocity * t.pursue_lead
-			a.target = clamp_to_own_line(lead + attack * t.shadow_gap, attack)
-			a.feed = split_feed(carrier.planar_velocity, attack, t.pursuer_retreat)
+			var to_c := carrier.planar_position() - best.planar_position()
+			if to_c.length() < t.engage_dist:
+				# Commit to the tackle: drive through the carrier.
+				a.role = &"tackle"
+				a.target = carrier.planar_position() + carrier.planar_velocity * 0.15
+				# Track the carrier sideways, but go INTO him — never back off.
+				a.feed = split_feed(carrier.planar_velocity, attack, 0.0) + to_c.normalized() * t.engage_speed
+			else:
+				var lead := carrier.planar_position() + carrier.planar_velocity * t.pursue_lead
+				a.target = clamp_to_own_line(lead + attack * t.shadow_gap, attack)
+				a.feed = split_feed(carrier.planar_velocity, attack, t.pursuer_retreat)
 			out.append(a)
 
 	# 2. Lateral pairing: cover the attackers nearest the ball first.

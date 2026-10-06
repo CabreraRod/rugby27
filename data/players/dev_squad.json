@@ -4,7 +4,7 @@
 		{
 			"name": "Tomás Arrieta",
 			"number": 10,
-			"position": "FlyHalf",
+			"position": "FlyHalf", "weight_kg": 86,
 			"attributes": {
 				"speed": 82, "acceleration": 84, "strength": 71, "passing": 91, "kicking": 88,
 				"tackling": 67, "handling": 89, "decision_making": 91, "stamina": 85
@@ -13,7 +13,7 @@
 		{
 			"name": "Kai Mahoe",
 			"number": 11,
-			"position": "Wing",
+			"position": "Wing", "weight_kg": 90,
 			"attributes": {
 				"speed": 96, "acceleration": 93, "strength": 66, "passing": 70, "kicking": 62,
 				"tackling": 64, "handling": 84, "decision_making": 74, "stamina": 80
@@ -22,7 +22,7 @@
 		{
 			"name": "Ignacio Ferreyra",
 			"number": 3,
-			"position": "TightheadProp",
+			"position": "TightheadProp", "weight_kg": 120,
 			"attributes": {
 				"speed": 52, "acceleration": 60, "strength": 95, "passing": 55, "kicking": 30,
 				"tackling": 82, "handling": 62, "decision_making": 70, "stamina": 74
@@ -31,7 +31,7 @@
 		{
 			"name": "Facundo Ledesma",
 			"number": 9,
-			"position": "ScrumHalf",
+			"position": "ScrumHalf", "weight_kg": 78,
 			"attributes": {
 				"speed": 80, "acceleration": 90, "strength": 60, "passing": 94, "kicking": 80,
 				"tackling": 66, "handling": 90, "decision_making": 88, "stamina": 90
@@ -40,7 +40,7 @@
 		{
 			"name": "Mateo Quiroga",
 			"number": 12,
-			"position": "InsideCentre",
+			"position": "InsideCentre", "weight_kg": 100,
 			"attributes": {
 				"speed": 80, "acceleration": 80, "strength": 85, "passing": 80, "kicking": 66,
 				"tackling": 84, "handling": 82, "decision_making": 80, "stamina": 84
@@ -49,7 +49,7 @@
 		{
 			"name": "Rafael Duarte",
 			"number": 13,
-			"position": "OutsideCentre",
+			"position": "OutsideCentre", "weight_kg": 95,
 			"attributes": {
 				"speed": 87, "acceleration": 85, "strength": 79, "passing": 77, "kicking": 58,
 				"tackling": 80, "handling": 83, "decision_making": 78, "stamina": 83
@@ -58,7 +58,7 @@
 		{
 			"name": "Liam Okafor",
 			"number": 15,
-			"position": "FullBack",
+			"position": "FullBack", "weight_kg": 92,
 			"attributes": {
 				"speed": 88, "acceleration": 86, "strength": 70, "passing": 80, "kicking": 85,
 				"tackling": 72, "handling": 90, "decision_making": 84, "stamina": 85

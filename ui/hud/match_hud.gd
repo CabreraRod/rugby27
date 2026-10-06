@@ -85,11 +85,11 @@ func _ready() -> void:
 	v.add_child(_stamina_bar)
 
 	_hint = Label.new()
-	_hint.text = "Move: WASD / Left stick    Sprint: Shift / RT    Pass left/right: Q / E  ·  LB / RB  (hold = long; defending = switch player)\nCamera: C   Debug: F1   Sandbox: F2   Dev: F drop  T toss  G ground  N profile  R reset  F5 reload"
+	_hint.text = "Move: WASD / L-stick   Sprint: Shift / RT   Pass: Q / E · LB / RB (hold = long)   Fend: V / X   Sidestep: Z / X key · R-stick flick\nDefending: run into the carrier to tackle · Dive: Space / A · Switch: Q / E · LB / RB      Camera C · Debug F1 · Sandbox F2 · Reset R"
 	_hint.anchor_left = 0.5
 	_hint.anchor_right = 0.5
-	_hint.offset_left = -500
-	_hint.offset_right = 500
+	_hint.offset_left = -700
+	_hint.offset_right = 700
 	_hint.offset_top = 18
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.92))
@@ -143,7 +143,7 @@ func _process(delta: float) -> void:
 				_phase_label.text = "ATTACK"
 				_phase_label.add_theme_color_override("font_color", Color("#7cff6b"))
 			TeamControl.Phase.DEFEND:
-				_phase_label.text = "DEFENCE  ·  LB/RB switch"
+				_phase_label.text = "DEFENCE  ·  A dive  ·  LB/RB switch"
 				_phase_label.add_theme_color_override("font_color", Color("#ff8a8f"))
 			_:
 				_phase_label.text = "LOOSE BALL"

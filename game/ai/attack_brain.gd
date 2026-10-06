@@ -49,3 +49,14 @@ static func choose_pass(carrier: RugbyPlayer, passing: PassingSystem, defenders:
 			best_room = room
 			best_side = side
 	return best_side
+
+
+## Fend when a defender is about to make contact from the front/side.
+static func wants_fend(carrier: RugbyPlayer, defenders: Array[RugbyPlayer], attack: Vector2, dist: float) -> bool:
+	for d in defenders:
+		if not d.is_controllable() and not d.is_diving():
+			continue
+		var rel := d.planar_position() - carrier.planar_position()
+		if rel.length() < dist and rel.dot(attack) > -0.2:
+			return true
+	return false

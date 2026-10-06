@@ -30,6 +30,7 @@ func _run() -> void:
 			root.add_child(scene)
 			scene.passing.rng.seed = hash("pass-%d" % run)  # well-spread seeds: PCG seeds next to each other correlate early draws
 			scene.possession.rng.seed = hash("poss-%d" % run)
+			scene.tackles.rng.seed = hash("tackle-%d" % run)
 			var counts := [0, 0, 0]  # thrown, completed, intercepted
 			scene.passing.pass_thrown.connect(func(_a, _b, _f): counts[0] += 1)
 			scene.passing.pass_completed.connect(func(_a, _b): counts[1] += 1)

@@ -17,12 +17,16 @@ must happen in the same tick, every time.
 | Pass to the attacker's left (tap quick, hold long) | Q | LB / L1 |
 | Pass to the attacker's right (tap quick, hold long) | E | RB / R1 |
 | Defending: switch to the teammate nearest the ball | Q or E | LB or RB |
+| Defending: tackle | run into the carrier | run into the carrier |
+| Defending: dive tackle | Space | A / Cross |
+| Carrying: fend (hand-off) | V | X / Square |
+| Carrying: sidestep left / right | Z / X | right stick flick |
 | Toggle camera (side / end-on) | C | Back/View |
 | Debug overlay | F1 | — |
 | Toggle single-player sandbox / team mode | F2 | D-pad up |
 | Dev: go to ground | G | B / Circle |
 | Dev: toggle neutral/defender (when not carrying) | B | — |
-| Dev: drop the ball (forward, knock-on style) | F | X / Square |
+| Dev: drop the ball (forward, knock-on style) | F | — |
 | Dev: toss a bouncing ball toward you | T | D-pad down |
 | Dev: next profile for the controlled player | N | Y / Triangle |
 | Dev: reset lineup + ball | R | Start |
@@ -227,13 +231,47 @@ the carrier and reform after every pass. No decisions.
   ball flies on. Notices: INTERCEPTED / TURNOVER / TURNOVER WON.
 - Measurements: see ROADMAP (tools/defence_soak.gd).
 
+## Tackling (Milestone 06)
+
+- **Contact is the tackle:** a defender who reaches the carrier (0.85 m
+  centre to centre) tackles. No button needed (accessible, Rugby 08 style).
+- **Outcome** (TackleModel): tackler power vs. carrier resistance —
+  - power = (kg/100)^0.7 × (4 + 0.6 × closing speed) × tackling skill × angle
+  - resistance = (kg/100)^0.7 × (4 + 0.6 × carrier speed) × strength
+  - angle: head-on 1.0, side 1.05, from behind 0.85
+  - P(break) is a logistic of ln(power/resistance); P(dominant) grows
+    when the tackler clearly wins.
+  - Calibration: typical back-on-back ~9 % broken, carrier sprinting ~17 %,
+    prop carrying into a wing ~30 %, a committed hit by a big defender
+    almost never broken and often dominant.
+- **Held:** both go down; the carrier slides forward (35 % of speed), the
+  ball is placed 0.9 m behind, and only the tackled team may pick it up
+  for 2.5 s (placeholder until M08 rucks). 2 % chance of a spill
+  (knock-on), 8 % on a dominant hit.
+- **Dominant:** the carrier is driven back; the tackler is up sooner.
+- **Broken:** the carrier stumbles on (65 % of speed); the tackler falls
+  and can't re-tackle that carrier for 0.6 s.
+- **Dive tackle (A/Space):** lunge along your facing; +2 m reach in front
+  and +15 % power for 0.35 s. Miss = 1.1 s on the floor (anti-spam).
+- **Fend (X/V):** 0.35 s window, ×1.35 resistance against front/side
+  tackles only; 1.2 s cooldown. AI carriers fend too.
+- **Sidestep (right-stick flick / Z, X):** 3.5 m/s lateral burst relative
+  to your facing; tacklers are wrong-footed (×0.7 power) for 0.25 s;
+  0.9 s cooldown, costs stamina.
+- **Defenders commit:** within 3 m the carrier's defender drives into him
+  (closing speed) instead of shadowing.
+- After a tackle, control leaves a grounded player for the nearest
+  teammate on their feet. Camera shake on impact (stronger on big hits).
+- Real matches use random seeds; tests and tools use fixed/hashed seeds.
+
 ## Camera
 
 Side-on broadcast camera (default) and an end-on alternative. It frames the
 space the player runs into (0.55 s look-ahead), follows with a critically
 damped spring and widens slightly at sprint speed. When you aren't carrying
-(defending, waiting for a pass) the focus sits up to 45 % toward the ball
-and the camera pulls back as ball and player get further apart.
+(defending, waiting for a pass) the focus sits 45 % toward the ball, rising
+to 85 % when you're far from it, and the camera pulls back as ball and
+player get further apart.
 
 ## Readability
 

@@ -1,6 +1,6 @@
 # Rugby 27 — Architecture
 
-Status: Milestone 05 (6 v 6: human team vs AI team, placeholder support/defence/carrier AI, passing, interceptions, turnovers).
+Status: Milestone 06 — tackling (6 v 6, human vs AI team, passing, tackling, turnovers; placeholder AI).
 
 ## Principles
 
@@ -32,6 +32,7 @@ Defined in `game/field/field_dimensions.gd` and used everywhere:
 ```
 match/        composition: bootstrap, Team, TeamControl (later MatchDirector)
   ├─ ui/, debug/, camera/, presentation/   read-only views
+  ├─ tackling/ TackleSystem → TackleModel core
   ├─ passing/  PassingSystem → targeting / solver / catch cores
   ├─ ai/       SupportRunner, DefensiveLine, AttackBrain (placeholders; M06 AI)
   ├─ ball/     PossessionController → RugbyBall → bounce/pickup cores
@@ -75,6 +76,9 @@ data/          JSON (tuning, players, teams)
 | `game/passing/passing_system.gd` | Charge/release, throw, pass-in-flight tracking, forward detection. |
 | `game/ai/support_tuning.gd` | Support line parameters (`data/tuning/support.json`). |
 | `game/ai/support_runner.gd` | Receiver dummies: staggered slots around the anchor, steering, receiver pace assist. |
+| `game/tackling/tackle_tuning.gd` | Tackle + carrier-move parameters (`data/tuning/tackle.json`). |
+| `game/tackling/tackle_model.gd` | Pure tackle resolution: power vs. resistance, outcomes, spills, carrier velocity after. |
+| `game/tackling/tackle_system.gd` | Contact detection (incl. dive reach), applies outcomes, placement protection, dive-miss tracking. |
 | `game/ai/defence_tuning.gd` | Defence + AI-carrier parameters (`data/tuning/defence.json`). |
 | `game/ai/defensive_line.gd` | Pure defensive assignment: pursuer, man-for-man drift, sweepers, line speed, own-line clamp. |
 | `game/ai/attack_brain.gd` | Placeholder AI carrier: run, veer, pass under pressure. |
@@ -88,6 +92,7 @@ data/          JSON (tuning, players, teams)
 | `tests/*` | Headless test runner + suites. |
 | `tools/capture_screenshots.gd` | Scripted run that saves screenshots (visual regression aid). |
 | `tools/pass_soak.gd` | 48 seeded backline moves (no defenders; `-- --opponents` to add them); completion / drops / forward passes. |
+| `tools/tackle_soak.gd` | 24+24 seeded phases with tackling: broken / dominant rates, spills, metres, by matchup (`-- --verbose` lists every contact). |
 | `tools/defence_soak.gd` | 24+24 seeded phases (we attack / they attack): pressure, line breaks, turnovers, completion, metres (`-- --verbose` lists failures). |
 
 ## Per-tick order (60 Hz physics)
@@ -98,7 +103,9 @@ data/          JSON (tuning, players, teams)
 2. `PassingSystem` (−9): charge timer, auto-release, throw (ball released
    this tick), pass-in-flight timeout.
 3. `RugbyPlayer._physics_process` (0): stamina → stats → `LocomotionModel.step` →
-   facing → `move_and_slide` (Jolt) → velocity read back.
+   facing → `momentum_velocity` saved → `move_and_slide` (Jolt) → velocity read back.
+3b. `TackleSystem` (3): carrier in contact with an opponent → TackleModel →
+   ground players / place or spill the ball.
 4. `PossessionController` (5): ball near the ground within reach → pickup;
    in the air at catch height → catch at closest approach.
 5. `RugbyBall._physics_process` (10): held ball follows the carry socket;
@@ -124,7 +131,9 @@ Empty placeholder folders are deliberately **not** created now.
 - **Rules (M11):** `RugbyBall.released(by, velocity, reason)` and
   `went_dead(zone, point)` are the events the referee will consume
   (knock-on = forward release by hands; touch → lineout).
-- **Tackling (M07):** `DefensiveLine` already names the pursuer; contact
-  between pursuer and carrier is where the tackle system takes over.
-- **AI (M06):** replaces `SupportRunner` behind the same `set_intent()` API
-  and can pass through `PassingSystem.throw_to()`.
+- **Rucks (M08):** `PossessionController.protect()` is the placeholder;
+  a RuckSystem replaces it (bodies arriving at the tackle, contest, quick
+  vs. slow ball).
+- **AI (M07):** replaces `SupportRunner`/`DefensiveLine`/`AttackBrain`
+  behind the same `set_intent()` API; can pass via `PassingSystem.throw_to()`
+  and query `TackleModel.evaluate()` to judge contact.

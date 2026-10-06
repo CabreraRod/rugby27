@@ -44,6 +44,8 @@ var _focus := Vector3.ZERO
 var _focus_vel := Vector3.ZERO
 var _offset := Vector3.ZERO
 var _zoom := 0.0
+var _trauma := 0.0
+var _shake_t := 0.0
 
 
 func _ready() -> void:
@@ -61,6 +63,12 @@ func snap() -> void:
 	_focus_vel = Vector3.ZERO
 	_offset = _mode_offset()
 	_apply()
+
+
+## Short impact shake (0..1). Decays in ~0.4 s; kept small so it never
+## hides the play.
+func shake(amount: float) -> void:
+	_trauma = clampf(maxf(_trauma, amount), 0.0, 1.0)
 
 
 func toggle_mode() -> void:
@@ -83,7 +91,9 @@ func _process(delta: float) -> void:
 		if ball.is_loose():
 			w = loose_ball_bias * (1.0 - clampf(d / loose_ball_range, 0.0, 1.0))
 		if ball.carrier != null or not ball.is_loose():
-			w = ball_focus_weight * (1.0 - clampf(d / ball_focus_range, 0.0, 1.0) * 0.5)
+			# The further you are from the ball, the more it matters: far
+			# away, the camera is mostly on the ball (you run into frame).
+			w = lerpf(ball_focus_weight, 0.85, clampf((d - 12.0) / 25.0, 0.0, 1.0))
 		desired = desired.lerp(Vector3(bpos.x, 0.0, bpos.z), w)
 		spread = clampf(d / ball_focus_range, 0.0, 1.0)
 	desired.x = clampf(desired.x, -focus_limit.x, focus_limit.x)
@@ -95,6 +105,11 @@ func _process(delta: float) -> void:
 	_zoom = lerpf(_zoom, maxf(speed_t, spread * spread_zoom / maxf(speed_zoom, 0.01)), 1.0 - exp(-1.5 * delta))
 	_offset = _offset.lerp(_mode_offset(), 1.0 - exp(-3.0 * delta))
 	_apply()
+	if _trauma > 0.0:
+		_shake_t += delta * 40.0
+		var k := _trauma * _trauma * 0.35
+		global_position += Vector3(sin(_shake_t * 1.3), sin(_shake_t * 1.7 + 1.0), sin(_shake_t * 1.1 + 2.0)) * k
+		_trauma = maxf(0.0, _trauma - delta * 2.5)
 
 
 func _apply() -> void:
