@@ -9,12 +9,13 @@ func test_shipped_tuning_matches_code_defaults() -> void:
 	_compare(SupportTuning.new(), SupportTuning.load_default(), "support.json")
 	_compare(DefenceTuning.new(), DefenceTuning.load_default(), "defence.json")
 	_compare(TackleTuning.new(), TackleTuning.load_default(), "tackle.json")
+	_compare(AITuning.new(), AITuning.load_default(), "ai.json")
 
 
 func test_shipped_tuning_has_every_key() -> void:
 	for pair in [[MovementTuning.new(), MovementTuning.DEFAULT_PATH], [BallTuning.new(), BallTuning.DEFAULT_PATH],
 			[PassingTuning.new(), PassingTuning.DEFAULT_PATH], [SupportTuning.new(), SupportTuning.DEFAULT_PATH],
-			[DefenceTuning.new(), DefenceTuning.DEFAULT_PATH], [TackleTuning.new(), TackleTuning.DEFAULT_PATH]]:
+			[DefenceTuning.new(), DefenceTuning.DEFAULT_PATH], [TackleTuning.new(), TackleTuning.DEFAULT_PATH], [AITuning.new(), AITuning.DEFAULT_PATH]]:
 		var data := JsonLoader.load_dict(pair[1])
 		for key in pair[0].property_names().keys():
 			check(data.has(key), "%s is missing '%s'" % [pair[1].get_file(), key])

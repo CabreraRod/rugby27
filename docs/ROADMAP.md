@@ -11,8 +11,8 @@ stop for review. No skipping ahead.
 | 04 | Passing | ✅ | A→B→C→D chain without fighting controls; forward pass detection |
 | 05 | Multiple players | ✅ | Second team, switching on defence, camera focus solver |
 | 06 | Tackling (swapped with AI) | ✅ | Tackle outcome from speed/angle/strength/timing; break tackles |
-| 07 | Basic AI (swapped with tackling) | ⏭ next | Real attacking/defensive decisions replacing the placeholders |
-| 08 | Rucks | | Tackle → ground → ruck → ball available, contest, turnover |
+| 07 | Basic AI (swapped with tackling) | ✅ | Real attacking/defensive decisions replacing the placeholders |
+| 08 | Rucks | ⏭ next | Tackle → ground → ruck → ball available, contest, turnover |
 | 09 | Kicking | | Punt, grubber, chip, high, touch-finder; kick chase |
 | 10 | Scoring | | Tries, conversions, drop goals, penalty goals |
 | 11 | Rules | | Referee: knock-on, forward pass, offside, advantage, touch |
@@ -105,18 +105,63 @@ collisions had clipped them (players in contact read 0 m/s); defenders
 committing to the tackle were backing off with the carrier; soaks shared
 one tackle seed (every first tackle was a knock-on).
 
-## Milestone 07 — Basic AI (next)
-Scope proposal:
-- Attacking AI with decisions: run lines into space (not just slots),
-  pass/carry choice from space and defenders, depth, inside/outside
-  support, and a simple kick decision placeholder until M09.
-- Defensive AI decisions on top of the M05 structure: rush vs. drift
-  choice by situation, inside cover, retreat when broken, pursuit angles.
-- Team-style parameters plumbed in (tempo, width) so M15 can tune them.
-- Soaks: AI vs AI matches measuring metres, breaks, turnovers, pass
-  completion — the numbers must move when the AI improves.
+## Milestone 07 — Basic AI ✅
 
-Builds on real contact now: carry vs. pass decisions from defender
-distance and break odds (TackleModel.evaluate is pure and cheap), defenders
-choosing who to tackle and when to dive, support runners arriving at the
-tackle for the M08 ruck.
+Delivered:
+- **Spatial reasoning** (`SpaceEval`, pure): space down a running line,
+  best line among 7 rays (±45°, touch-avoiding), space around a point,
+  passing-lane clearance, defensive gaps, intercept time.
+- **Attacking AI** (`AttackAI`): the AI carrier re-thinks every
+  0.15–0.4 s (team tempo × decision making). It picks a running line into
+  space (with hysteresis) and weighs carry against pass on one scale,
+  metres of room. Carry = room down his line, capped by the gap to the man
+  about to tackle him, plus a P(break) bonus from `TackleModel.evaluate`
+  that grows as contact nears. Pass = room around the receiver − risky
+  lane − forward risk − giving back too much ground. Passing appetite
+  comes from team style, and noise from the player's decision making.
+  Reflexes: sidestep into room head-on, fend at contact.
+- **Support play**: style-scaled support line (width → spacing, tempo →
+  depth), flattening onto the ball as the defence nears, sliding toward
+  defensive gaps, and one inside-support runner.
+- **Smarter defence**: the pursuer is whoever can intercept the carrier
+  soonest, not the nearest man. Beaten defenders chase on an intercept
+  line. A spare defender covers inside and behind. The tackler engages
+  at the ball and dives when the carrier is in reach and escaping
+  (cooldown). Line speed, retreat and engage distance come from team
+  aggression.
+- **Team styles** (`TeamStyle`, data/teams/*.json): tempo, width,
+  aggression and passing change behaviour now (spec §13; M15 tunes them).
+- `data/tuning/ai.json`, debug overlay (running line, inside runner,
+  chase/cover colours, AI decision text), `tools/ai_soak.gd`.
+- 123 automated tests (+12).
+
+AI vs AI soak (`tools/ai_soak.gd`, 16 seeded attacks of ≤10 s from the
+lineup, 6 v 6):
+
+| attack vs defence | metres | tries | breaks | passes (compl.) | tackles (broken) | turnovers |
+|---|---|---|---|---|---|---|
+| old vs old | 55.0 | 16 | 0 | 16 (15) | 2 (1) | 0 |
+| NEW vs old | 16.8 | 1 | 1 | 37 (30) | 35 (15) | 2 |
+| old vs NEW | 25.7 | 1 | 1 | 16 (15) | 67 (4) | 2 |
+| NEW vs NEW | 43.3 | 8 | 3 | 28 (24) | 15 (3) | 2 |
+
+The old placeholder defence let the wing run 55 m almost every time (its
+pursuer flipped to a slower man behind the play), so "old vs old" scores
+look good only because the defence was broken. The M07 defence stops the
+old attack (16 → 1 tries); the M07 attack moves the ball (28 passes,
+86 % to hand) and makes real breaks against it.
+
+Not done (by design / next):
+- kick decisions (M09);
+- support arriving at the tackle (M08 rucks);
+- tactical patterns and set moves (M15);
+- tuning against human play (needs the joystick playtest).
+- 6 v 6 on a full-width pitch leaves a lot of space, so try rates will
+  drop at 15 v 15 (M12).
+
+## Milestone 08 — Rucks (next)
+Scope proposal: tackle → tackled player places the ball → nearest
+support/defenders commit (AI decides how many) → contest from bodies,
+weight and timing → ball available to the 9 (or turnover / penalty
+placeholder) → play restarts from the ruck with a fresh defensive line.
+Replaces the 2.5 s placement protection (TD-027).

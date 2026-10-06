@@ -264,6 +264,44 @@ the carrier and reform after every pass. No decisions.
   teammate on their feet. Camera shake on impact (stronger on big hits).
 - Real matches use random seeds; tests and tools use fixed/hashed seeds.
 
+## Basic AI (Milestone 07)
+
+The AI drives both teams; on yours it plays everyone you don't control.
+
+- **AI carrier** thinks every 0.15–0.4 s (team tempo and decision
+  making). It runs the line with the most room (7 rays, ±45°, avoids
+  touch, doesn't twitch between lines). Carry or pass is judged on one
+  scale, metres of room:
+  - carry = room down his line (never more than the gap to the tackler,
+    max 12) + up to 6 × P(break) as contact nears;
+  - pass = room around the receiver (max 12) − up to 4 if a defender is
+    within 1.6 m of the lane − forward risk − deep receivers − 0.8 for
+    a skip pass;
+  - he passes when the best pass beats carry by a margin (smaller for
+    passing teams), or must pass when someone is within 2.8 m and the
+    pass is decent;
+  - noise scales with poor decision making;
+  - reflexes: sidestep into room when someone closes head-on, fend at
+    contact.
+- **Support**: width spreads the line (×0.8–1.2), tempo flattens it
+  (depth ×1.25–0.75); runners flatten onto the ball as the defence nears
+  and slide toward gaps; one runner tracks inside the carrier.
+- **Defence**:
+  - the pursuer is whoever can intercept the carrier soonest;
+  - beaten defenders chase on an intercept line;
+  - a spare defender covers inside/behind;
+  - the defender within engage range drives in at the ball and dives
+    when the carrier is 1.3 m to dive range and getting away (2 s
+    cooldown);
+  - aggression sets line speed, retreat and engage distance.
+- **Team styles** (data/teams/*.json, 0–100): tempo, width, aggression,
+  passing. Development XV: 75/70/65/75 (quick, wide, passing).
+  Opposition XV: 55/50/75/55 (rush defence).
+- **Debug (F1)**: white running line for the AI carrier, green ring on
+  the inside runner, orange chasers, teal cover, the AI's last decision
+  in the panel.
+- Measured: see ROADMAP (tools/ai_soak.gd).
+
 ## Camera
 
 Side-on broadcast camera (default) and an end-on alternative. It frames the

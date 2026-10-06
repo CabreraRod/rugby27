@@ -16,40 +16,42 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	# M07: AI vs AI (autoplay). Blue's AI attacks from the lineup.
 	scene = load("res://game/match/match.tscn").instantiate()
 	scene.solo = false
+	scene.autoplay = true
 	root.add_child(scene)
-	var ball: RugbyBall = scene.ball
-	await _frames(20)
+	scene.passing.rng.seed = hash("pass-3")
+	scene.team_control.attack_ai.rng.seed = hash("atk-3")
+	scene.tackles.rng.seed = hash("tackle-3")
+	var ev := {"pass": false, "tackle": false}
+	scene.passing.pass_thrown.connect(func(_p, _r, _f): ev["pass"] = true)
+	scene.tackles.tackle_made.connect(func(_d, _c, _r): ev["tackle"] = true)
 
-	# 1. Run at the line: the moment of contact, then the tackled player down.
-	var shot := {"taken": false}
-	scene.tackles.tackle_made.connect(func(_d, _c, _r): shot["taken"] = true)
-	_stick(Vector2.RIGHT)
-	for i in 240:
+	# 1. Support line shaping up as the defence comes up.
+	await _ticks(40)
+	await _shot("01_ai_attack_shape")
+
+	# 2. First AI pass in flight.
+	for i in 300:
 		await physics_frame
-		if shot["taken"]:
+		if ev["pass"]:
 			break
-	await _ticks(2)
-	await _shot("01_tackle_contact")
-	await _ticks(25)
-	await _shot("02_tackled_ball_placed")
+	await _ticks(10)
+	await _shot("02_ai_pass")
 
-	# 2. Defence: their 9 carries, our controlled defender dives.
-	scene.reset_play()
-	scene.possession.clear_cooldowns()
-	var o9: RugbyPlayer = scene.opp.players[0]
-	ball.attach(o9)
-	await _ticks(30)
-	var me: RugbyPlayer = scene.team_control.controlled
-	me.reset_to(o9.global_position + Vector3(-3.5, 0, 0.6), Vector2(1, -0.15).normalized())
-	await _ticks(1)
-	me.try_dive()
-	await _ticks(6)
-	await _shot("03_dive_tackle")
+	# 3. Debug view: running line, inside support, chase / cover, decisions.
 	scene.debug_overlay.toggle()
 	await _ticks(20)
-	await _shot("04_debug_tackle_info")
+	await _shot("03_ai_debug")
+
+	# 4. Contact.
+	for i in 400:
+		await physics_frame
+		if ev["tackle"]:
+			break
+	await _ticks(3)
+	await _shot("04_ai_tackle")
 	quit(0)
 
 
@@ -63,7 +65,6 @@ func _stick(dir: Vector2) -> void:
 func _ticks(n: int) -> void:
 	for i in n:
 		await physics_frame
-	await process_frame
 
 
 func _frames(n: int) -> void:
@@ -71,9 +72,14 @@ func _frames(n: int) -> void:
 		await process_frame
 
 
+## Freezes the game while the frame is rendered (software GL in xvfb is slow;
+## without the pause several physics ticks would pass before the capture).
 func _shot(shot_name: String) -> void:
+	paused = true
+	await process_frame
 	await RenderingServer.frame_post_draw
 	var img := root.get_texture().get_image()
 	var path := _out.path_join(shot_name + ".png")
 	img.save_png(path)
 	print("saved ", path)
+	paused = false

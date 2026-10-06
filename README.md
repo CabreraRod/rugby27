@@ -3,10 +3,11 @@
 A modern spiritual successor to classic console rugby. Original code, original
 procedural assets. Built incrementally: every milestone is playable.
 
-**Current state:** Milestone 06 — 6 v 6 against an AI team with real
-tackling. Run, pass, fend and sidestep; on defence run into the carrier
-to tackle or dive with A. Weight, speed, angle and skill decide the
-outcome. F2 switches to a single-player sandbox.
+**Current state:** Milestone 07 — 6 v 6 with real tackling and a basic
+AI on both sides: AI carriers pick lines into space and choose carry vs.
+pass, support runners flatten and hunt gaps, defenders chase on intercept
+lines, cover and dive. Team styles (tempo, width, aggression, passing)
+change how each side plays. F2 switches to a single-player sandbox.
 
 ## Run
 
@@ -43,6 +44,7 @@ the attacker's left/right, not the screen's.
 godot --headless --path . --script res://tools/pass_soak.gd     # passing stats
 godot --headless --path . --script res://tools/defence_soak.gd  # defence stats
 godot --headless --path . --script res://tools/tackle_soak.gd   # tackle stats
+godot --headless --path . --script res://tools/ai_soak.gd     # AI vs AI A/B matrix
 ```
 
 ## Docs

@@ -219,3 +219,33 @@ scene; tests/tools keep fixed or hashed seeds.
   but will not scale to rucks/scrums. Animation sourcing (licensed mocap
   vs. hand-keyed vs. procedural + physical animation) must be decided
   before M08/M13.
+
+## TD-029 AI decisions compare like with like (metres of room)
+The AI carrier first scored carry on ray space (up to 20 m plus a straight
+bonus) and passes on receiver space (capped 12 m, lane-penalised). The two
+scales didn't match, and the carrier almost never passed (one-out
+carries; the decision log showed carry 10–21 against pass −1–5). Now both
+are "metres of room": carry room is capped by the distance to the
+imminent tackler and by the same cap as receivers, and the break bonus
+only counts as contact nears. This is simple and readable in the debug
+overlay. The tradeoff: it is a heuristic, not a learned or searched
+policy. That is enough for M07; patterns and set moves come in M15.
+
+## TD-030 Pursuit by intercept time, not distance
+The defender sent at the carrier is whoever can meet him soonest
+(SpaceEval.intercept_time with his sprint speed), not the nearest man.
+Nearest-distance selection flipped to slower defenders already behind
+the carrier and let wings run 55 m. Beaten defenders keep chasing on an
+intercept line.
+
+## TD-031 Team style as four numbers with explicit mappings
+TeamStyle (tempo, width, aggression, passing) maps to concrete parameters
+(support spacing/depth, think interval, defensive line speed/retreat/
+engage distance, pass margin), documented in team_style.gd and tested.
+Each team gets its own styled copies of the shared tunings, so F5 reload
+and tests still use one JSON source.
+
+## TD-032 AI level switch kept for A/B soaks
+TeamControl.ai_level 0 = M05 placeholders, 1 = M07 AI (default). Keeping
+the old behaviour lets tools/ai_soak.gd prove the AI improved (spec:
+"the numbers must move"), at the cost of some dead code until M15.

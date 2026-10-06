@@ -50,9 +50,15 @@ static func slot_position(anchor: Vector2, team: Team, side: float, k: int, t: S
 	return Vector2(clampf(p.x, -max_x, max_x), clampf(p.y, -max_z, max_z))
 
 
-## Steering toward a slot that moves with the anchor.
+## Steering toward a slot that moves with the anchor. A slot pinned at the
+## touch limit doesn't inherit the anchor's drift toward touch (no running
+## out of the field to keep pace with the ball).
 static func steer(pos: Vector2, slot: Vector2, anchor_vel: Vector2, jog_top: float, t: SupportTuning) -> Intent:
-	return steer_to(pos, slot, anchor_vel, jog_top, t.gain, t.settle_dist)
+	var feed := anchor_vel
+	var max_z := FieldDimensions.HALF_WIDTH - t.touch_margin
+	if absf(slot.y) >= max_z - 0.05 and signf(feed.y) == signf(slot.y):
+		feed.y = 0.0
+	return steer_to(pos, slot, feed, jog_top, t.gain, t.settle_dist)
 
 
 ## Generic: reach a moving target. feed = the target's own velocity

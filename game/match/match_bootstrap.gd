@@ -32,6 +32,13 @@ var pass_tuning: PassingTuning
 var support_tuning: SupportTuning
 var defence_tuning: DefenceTuning
 var tackle_tuning: TackleTuning
+var ai_tuning: AITuning
+## M07: 1 = basic AI, 0 = M04-M06 placeholders (A/B soaks). Set before _ready.
+var ai_level := 1
+## Opponents' AI level if >= 0 (A/B soaks), else ai_level. Set before _ready.
+var opp_ai_level := -1
+## Both teams AI-controlled (soaks, attract mode). Set before _ready.
+var autoplay := false
 var squad: Array[PlayerProfile] = []
 var team := Team.new()
 var team_data := {}
@@ -63,6 +70,7 @@ func _ready() -> void:
 	support_tuning = SupportTuning.load_default()
 	defence_tuning = DefenceTuning.load_default()
 	tackle_tuning = TackleTuning.load_default()
+	ai_tuning = AITuning.load_default()
 	squad = PlayerProfile.load_squad(SQUAD_PATH)
 	if squad.is_empty():
 		squad.append(PlayerProfile.from_dict({"name": "Fallback", "number": 1}))
@@ -122,12 +130,14 @@ func _ready() -> void:
 	var opp_ref: Team = opp if not opp.players.is_empty() else null
 	team_control = TeamControl.new()
 	team_control.name = "TeamControl"
-	team_control.setup(team, opp_ref, ball, passing, possession, human, support_tuning, defence_tuning)
+	team_control.setup(team, opp_ref, ball, passing, possession, null if autoplay else human, support_tuning, defence_tuning)
+	team_control.configure_ai(TeamStyle.from_dict(team_data.get("style", {})), ai_tuning, tackle_tuning, ai_level, 77)
 	add_child(team_control)
 	if opp_ref:
 		opp_control = TeamControl.new()
 		opp_control.name = "OppControl"
 		opp_control.setup(opp, team, ball, passing, possession, null, support_tuning, defence_tuning)
+		opp_control.configure_ai(TeamStyle.from_dict(opp_data.get("style", {})), ai_tuning, tackle_tuning, ai_level if opp_ai_level < 0 else opp_ai_level, 78)
 		add_child(opp_control)
 
 	hud = MatchHud.new()
@@ -156,6 +166,13 @@ func _ready() -> void:
 	possession.catch_failed.connect(func(_p, _c, knock_on: bool):
 		hud.notify("KNOCK-ON" if knock_on else "DROPPED", Color("#f5a524"), 1.0))
 	ball.carrier_changed.connect(_on_carrier_changed_notice)
+	if autoplay:
+		# Nobody is controlled: the camera follows whoever has the ball.
+		ball.carrier_changed.connect(func(_o, n: RugbyPlayer):
+			if n:
+				camera.target = n
+				hud.player = n
+				debug_overlay.player = n)
 	tackles.tackle_made.connect(_on_tackle)
 	tackles.dive_missed.connect(func(p: RugbyPlayer):
 		if p.team == team:
@@ -175,6 +192,9 @@ func _ready() -> void:
 func randomize_seeds() -> void:
 	for r in [ball.rng, possession.rng, passing.rng, tackles.rng]:
 		r.randomize()
+	for c in [team_control, opp_control]:
+		if c and c.attack_ai:
+			c.attack_ai.rng.randomize()
 
 
 ## Player node for the old single-player API (sandbox mode / tests).
@@ -193,6 +213,10 @@ func reset_play() -> void:
 	else:
 		ball.attach(team.players[0])
 	team_control.set_controlled(team.players[0])
+	if autoplay:
+		camera.target = team.players[0]
+		hud.player = team.players[0]
+		debug_overlay.player = team.players[0]
 	_possession_team = team if not solo else null
 	camera.snap()
 
@@ -309,12 +333,14 @@ func reload_tuning() -> void:
 	defence_tuning = DefenceTuning.load_default()
 	tackle_tuning = TackleTuning.load_default()
 	tackles.tuning = tackle_tuning
+	ai_tuning = AITuning.load_default()
 	for p in team.players + opp.players:
 		p.contact = tackle_tuning
 	for c in [team_control, opp_control]:
 		if c:
 			c.support = support_tuning
 			c.defence = defence_tuning
+			c.configure_ai(c.style, ai_tuning, tackle_tuning, c.ai_level)
 	print("Tuning reloaded (movement, ball, passing, support, defence)")
 
 

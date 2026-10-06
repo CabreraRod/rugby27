@@ -9,7 +9,9 @@ extends CanvasLayer
 ## pass in flight: aim point and the release line across the pitch (green =
 ## legal, red = forward), defensive assignments (red = pursuer on the
 ## carrier, pink = marking, purple = sweeper; faint line to the mark) and
-## loose-ball chasers (yellow). Will grow to cover AI targets, defensive/offside
+## loose-ball chasers (yellow); M07 AI: chase (orange), cover (teal), the AI
+## carrier's running line (white) and inside-support runner (green ring),
+## plus each AI team's last carrier decision in the text panel. Will grow to cover AI targets, defensive/offside
 ## lines, ruck state, etc.
 
 var player: RugbyPlayer
@@ -85,7 +87,7 @@ func _process(_delta: float) -> void:
 		"attrs     spd %d  acc %d  sta %d  str %d" % [a.rating("speed"), a.rating("acceleration"), a.rating("stamina"), a.rating("strength")],
 		"zone      %s" % FieldDimensions.Zone.keys()[FieldDimensions.zone_of(Vector2(player.global_position.x, player.global_position.z))],
 		"",
-	] + _ball_lines())
+	] + _ball_lines() + _ai_lines())
 	_draw_vectors(m)
 
 
@@ -123,12 +125,22 @@ func _draw_passing() -> void:
 		for asg in c.assignments:
 			var dp: Vector3 = asg.defender.get_global_transform_interpolated().origin
 			var tp := Vector3(asg.target.x, 0.06, asg.target.y)
-			var col := Color("#ff5a5f") if asg.role == &"pursue" or asg.role == &"tackle" else (Color("#c77dff") if asg.role == &"sweep" else Color("#ff9f9f"))
+			var col := _role_color(asg.role)
 			_circle(tp, 0.35, col)
 			_line(Vector3(dp.x, 0.06, dp.z), tp, col)
 			if asg.mark:
 				var mp: Vector3 = asg.mark.get_global_transform_interpolated().origin
 				_line(Vector3(dp.x, 1.0, dp.z), Vector3(mp.x, 1.0, mp.z), Color(1, 0.4, 0.4, 0.35))
+		var aai: AttackAI = c.attack_ai
+		if aai and c.ai_level >= 1 and c.phase == TeamControl.Phase.ATTACK:
+			var car := ball.carrier if ball else null
+			if car and car.team == c.team and not car.is_controlled:
+				var o: Vector3 = car.get_global_transform_interpolated().origin
+				var l := aai.current_line
+				_line(Vector3(o.x, 0.12, o.z), Vector3(o.x + l.x * 6.0, 0.12, o.z + l.y * 6.0), Color.WHITE)
+			if aai.inside_runner:
+				var ip: Vector3 = aai.inside_runner.get_global_transform_interpolated().origin
+				_circle(Vector3(ip.x, 0.09, ip.z), 0.7, Color("#7cff6b"))
 		if c.chaser:
 			var cp: Vector3 = c.chaser.get_global_transform_interpolated().origin
 			_line(Vector3(cp.x, 0.1, cp.z), Vector3(ball.global_position.x, 0.1, ball.global_position.z), Color("#ffd23f"))
@@ -139,6 +151,23 @@ func _draw_passing() -> void:
 		var x := passing.flight_release_pos.x
 		var col := Color("#ff5a5f") if passing.flight_forward else Color("#7cff6b")
 		_line(Vector3(x, 0.08, -FieldDimensions.HALF_WIDTH), Vector3(x, 0.08, FieldDimensions.HALF_WIDTH), col)
+
+
+static func _role_color(role: StringName) -> Color:
+	match role:
+		&"pursue", &"tackle": return Color("#ff5a5f")
+		&"sweep": return Color("#c77dff")
+		&"chase": return Color("#ff9f1c")
+		&"cover": return Color("#2ec4b6")
+	return Color("#ff9f9f")
+
+
+func _ai_lines() -> Array:
+	var out := [""]
+	for c in [team_control, opp_control]:
+		if c and c.attack_ai and c.ai_level >= 1 and c.phase == TeamControl.Phase.ATTACK:
+			out.append("AI %s: %s" % [c.team.name, c.attack_ai.last_decision])
+	return out
 
 
 func _ball_lines() -> Array:

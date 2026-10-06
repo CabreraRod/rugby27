@@ -33,6 +33,14 @@ var defence: DefenceTuning
 var controlled: RugbyPlayer
 var phase: Phase = Phase.LOOSE
 
+## 0 = the M04-M06 placeholders (kept for A/B soaks), 1 = M07 basic AI.
+var ai_level := 0
+var style := TeamStyle.new()
+var ai: AITuning
+var attack_ai: AttackAI
+var tackle_t: TackleTuning
+var _dive_cd := {}
+
 ## Debug views.
 var slots := {}
 var assignments: Array[DefensiveLine.Assignment] = []
@@ -42,6 +50,7 @@ var chaser: RugbyPlayer
 ## released by letting go; charges started from code keep their own timing).
 var _input_charge := false
 var _held_time := 0.0
+var _dt := 1.0 / 60.0
 
 const PASS_ACTIONS := ["pass_left", "pass_right"]
 
@@ -57,6 +66,30 @@ func setup(p_team: Team, p_opponents: Team, p_ball: RugbyBall, p_passing: Passin
 	defence = p_defence
 	ball.carrier_changed.connect(_on_carrier_changed)
 	passing.pass_thrown.connect(_on_pass_thrown)
+
+
+## Turns on the M07 AI with this team's style. Support and defence tunings
+## become per-team copies scaled by the style.
+func configure_ai(p_style: TeamStyle, p_ai: AITuning, p_tackle: TackleTuning, level: int = 1, seed_value: int = 77) -> void:
+	style = p_style
+	ai = p_ai
+	tackle_t = p_tackle
+	ai_level = level
+	if level >= 1:
+		support = AttackAI.styled_support(support, style)
+		defence = _styled_defence(defence, style)
+	attack_ai = AttackAI.new(ai, style, support, tackle_t, seed_value)
+
+
+static func _styled_defence(base: DefenceTuning, s: TeamStyle) -> DefenceTuning:
+	var out := DefenceTuning.new()
+	for k in base.property_names().keys():
+		out.set(k, base.get(k))
+	var shape := s.defence_shape()
+	out.gap_near = shape[0]
+	out.mark_retreat = shape[1]
+	out.engage_dist = shape[2]
+	return out
 
 
 func _ready() -> void:
@@ -87,6 +120,11 @@ func _physics_process(delta: float) -> void:
 		_held_time += delta
 	else:
 		_held_time = 0.0
+	for k in _dive_cd.keys():
+		_dive_cd[k] -= delta
+		if _dive_cd[k] <= 0.0:
+			_dive_cd.erase(k)
+	_dt = delta
 	match phase:
 		Phase.ATTACK:
 			_drive_attack()
@@ -120,7 +158,10 @@ func _drive_attack() -> void:
 	for p in team.players:
 		if p != controlled and p != anchor_player:
 			runners.append(p)
-	slots = SupportRunner.assign_slots(anchor_pos, team, runners, support)
+	if ai_level >= 1 and attack_ai:
+		slots = attack_ai.support_slots(anchor_pos, team, runners, opponents)
+	else:
+		slots = SupportRunner.assign_slots(anchor_pos, team, runners, support)
 
 	for p in team.players:
 		if p.role == RugbyPlayer.Role.DEFENDER:
@@ -132,7 +173,10 @@ func _drive_attack() -> void:
 				it = SupportRunner.receiver_assist(it, p.planar_velocity, p.stats.jog_top, support)
 		elif p == anchor_player:
 			if p == ball.carrier and not is_human():
-				it = _ai_carry(p)
+				if ai_level >= 1 and attack_ai:
+					it = attack_ai.carrier_intent(p, team, opponents, passing, _held_time, _dt)
+				else:
+					it = _ai_carry(p)
 			else:
 				it = SupportRunner.hold_course(p.planar_velocity, p.stats.jog_top)
 		elif slots.has(p):
@@ -181,11 +225,19 @@ func _drive_defence() -> void:
 	elif passing.in_flight and passing.flight_receiver and opponents.has(passing.flight_receiver):
 		carrier = passing.flight_receiver   # mark the receiver as the new carrier
 	var b := ball.global_position
-	assignments = DefensiveLine.assign(ai_defenders, controlled, opponents.players, carrier, Vector2(b.x, b.z), attack, defence)
+	var smart: AITuning = ai if ai_level >= 1 else null
+	var reach := (tackle_t.contact_radius + tackle_t.dive_reach) if tackle_t else 2.85
+	assignments = DefensiveLine.assign(ai_defenders, controlled, opponents.players, carrier, Vector2(b.x, b.z), attack, defence, smart, reach)
 	for a in assignments:
 		var it := SupportRunner.steer_to(a.defender.planar_position(), a.target, a.feed, a.defender.stats.jog_top, defence.gain, defence.settle_dist)
+		if a.role == &"chase":
+			it.sprint = true
+			it.mag = 1.0
 		_apply(a.defender, it)
 		a.defender.set_role(RugbyPlayer.Role.DEFENDER)
+		if a.dive and not _dive_cd.has(a.defender.get_instance_id()):
+			if a.defender.try_dive():
+				_dive_cd[a.defender.get_instance_id()] = ai.dive_cooldown
 	if controlled:
 		_apply(controlled, human.read_intent())
 		controlled.set_role(RugbyPlayer.Role.DEFENDER)

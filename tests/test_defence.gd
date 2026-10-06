@@ -86,6 +86,8 @@ func test_line_drifts_with_the_attack() -> void:
 	# diagonal and the support line follows. Defenders must slide with it.
 	# (Structure only: tackling is switched off for this test.)
 	scene.tackles.set_physics_process(false)
+	# Without tackles a dive can never connect; keep defenders on their feet.
+	scene.ai_tuning.dive_min = 99.0
 	_stick(Vector2.RIGHT)
 	await _ticks(30)
 	var team_before := _mean_z(team)

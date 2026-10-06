@@ -80,8 +80,12 @@ data/          JSON (tuning, players, teams)
 | `game/tackling/tackle_model.gd` | Pure tackle resolution: power vs. resistance, outcomes, spills, carrier velocity after. |
 | `game/tackling/tackle_system.gd` | Contact detection (incl. dive reach), applies outcomes, placement protection, dive-miss tracking. |
 | `game/ai/defence_tuning.gd` | Defence + AI-carrier parameters (`data/tuning/defence.json`). |
-| `game/ai/defensive_line.gd` | Pure defensive assignment: pursuer, man-for-man drift, sweepers, line speed, own-line clamp. |
-| `game/ai/attack_brain.gd` | Placeholder AI carrier: run, veer, pass under pressure. |
+| `game/ai/defensive_line.gd` | Pure defensive assignment: pursuer, man-for-man drift, sweepers, line speed, own-line clamp; with AI tuning: intercept-based pursuer, chase when beaten, cover, engage + dive decision. |
+| `game/ai/attack_brain.gd` | M05 placeholder AI carrier (kept as AI level 0 for A/B soaks). |
+| `game/ai/ai_tuning.gd` | M07 AI parameters (`data/tuning/ai.json`). |
+| `game/ai/team_style.gd` | Tempo / width / aggression / passing (0–100) → support scale, decision speed, defence shape, passing appetite. |
+| `game/ai/space_eval.gd` | Pure spatial reasoning: ray space, best line, space at a point, lane clearance, gaps, intercept time. |
+| `game/ai/attack_ai.gd` | M07 attacking AI: carrier running line + carry/pass decision + reflexes; style-scaled support slots, flattening, gap seeking, inside support. |
 | `game/match/team.gd` | Players + attack direction; attacker-relative left/right. |
 | `game/match/team_control.gd` | One per team (human or AI): phase (attack/defend/loose), per-tick intents, pass/switch buttons, control follows the ball and turnovers. |
 | `game/presentation/pass_markers.gd` | Floating Q·LB / RB·E labels over the current pass targets (yellow = charging, red = forward risk). |
@@ -93,12 +97,14 @@ data/          JSON (tuning, players, teams)
 | `tools/capture_screenshots.gd` | Scripted run that saves screenshots (visual regression aid). |
 | `tools/pass_soak.gd` | 48 seeded backline moves (no defenders; `-- --opponents` to add them); completion / drops / forward passes. |
 | `tools/tackle_soak.gd` | 24+24 seeded phases with tackling: broken / dominant rates, spills, metres, by matchup (`-- --verbose` lists every contact). |
+| `tools/ai_soak.gd` | AI vs AI A/B matrix (placeholder vs M07 attack × defence): metres, tries, breaks, passes, tackles, turnovers. |
 | `tools/defence_soak.gd` | 24+24 seeded phases (we attack / they attack): pressure, line breaks, turnovers, completion, metres (`-- --verbose` lists failures). |
 
 ## Per-tick order (60 Hz physics)
 
 1. `TeamControl` ×2 (priority −10): each team's phase and intents (human /
-   support runner / defensive line / AI carrier / loose-ball chaser) →
+   support runner / AttackAI slots + carrier decision / defensive line /
+   loose-ball chaser) →
    `set_intent()`; human pass/switch buttons → `PassingSystem`.
 2. `PassingSystem` (−9): charge timer, auto-release, throw (ball released
    this tick), pass-in-flight timeout.

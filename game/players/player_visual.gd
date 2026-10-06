@@ -200,6 +200,9 @@ func _process(delta: float) -> void:
 	_ring_pointer.visible = _ring.visible
 	_number.text = str(player.profile.number)
 	_number.modulate = Color("#ffd23f") if player.is_controlled else Color.WHITE
+	# Follow the body down when the player is on the ground (the lean pivots
+	# the body toward local -Z, so the head ends up about 1 m that way).
+	_number.position = Vector3(0, 2.2, 0).lerp(Vector3(0, 0.6, -1.0), _ground_blend)
 
 
 ## Short procedural overlays for passes and catches (cosmetic, never blocks).
