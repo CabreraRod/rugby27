@@ -49,7 +49,7 @@ var dominant_slide := -0.3
 ## Chance the carrier loses the ball forward in the tackle.
 var spill_dominant := 0.08
 var spill_normal := 0.02
-## After a tackle, only the tackled team may pick the ball up for this long (placeholder until M08 rucks).
+## Fallback only (no RuckSystem, e.g. isolated tests): after a tackle only the tackled team may pick the ball up for this long. M08 rucks replace it in matches.
 var placement_protect := 2.5
 ## Dive tackle: extra reach in front, active window, lunge speed, power bonus, ground time on a miss.
 var dive_reach := 2.0

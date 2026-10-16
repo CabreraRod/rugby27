@@ -170,7 +170,7 @@ func test_running_into_a_defender_tackles() -> void:
 	if got[0] != null and got[0].outcome != TackleModel.Outcome.BROKEN:
 		check(c.state == RugbyPlayer.State.GROUNDED, "tackled carrier goes to ground")
 		check(scene.ball.is_loose() or scene.ball.carrier != c, "the carrier no longer holds the ball")
-		check(scene.possession.protected_team == scene.team or got[0].spill, "tackled team gets the placement window")
+		check(scene.rucks.is_active() or got[0].spill, "a ruck forms over the placed ball")
 
 
 func test_tackled_ball_protected_then_open() -> void:

@@ -12,8 +12,8 @@ stop for review. No skipping ahead.
 | 05 | Multiple players | ✅ | Second team, switching on defence, camera focus solver |
 | 06 | Tackling (swapped with AI) | ✅ | Tackle outcome from speed/angle/strength/timing; break tackles |
 | 07 | Basic AI (swapped with tackling) | ✅ | Real attacking/defensive decisions replacing the placeholders |
-| 08 | Rucks | ⏭ next | Tackle → ground → ruck → ball available, contest, turnover |
-| 09 | Kicking | | Punt, grubber, chip, high, touch-finder; kick chase |
+| 08 | Rucks | ✅ | Rugby 08 rucks: commit with X, hold with □, turnovers, ball to the 9 |
+| 09 | Kicking | ⏭ next | Punt, grubber, chip, high, touch-finder, box kick from the ruck (△); kick chase |
 | 10 | Scoring | | Tries, conversions, drop goals, penalty goals |
 | 11 | Rules | | Referee: knock-on, forward pass, offside, advantage, touch |
 | 12 | 15v15 match | | Two teams play a full match start to finish |
@@ -159,9 +159,85 @@ Not done (by design / next):
 - 6 v 6 on a full-width pitch leaves a lot of space, so try rates will
   drop at 15 v 15 (M12).
 
-## Milestone 08 — Rucks (next)
-Scope proposal: tackle → tackled player places the ball → nearest
-support/defenders commit (AI decides how many) → contest from bodies,
-weight and timing → ball available to the 9 (or turnover / penalty
-placeholder) → play restarts from the ruck with a fresh defensive line.
-Replaces the 2.5 s placement protection (TD-027).
+## Milestone 08 — Rucks ✅
+
+Design goal (user decision, 2026-10-15): rucks play like Rugby 08. Fast,
+readable, no mini-game, but a real contest both teams can bid on.
+
+Delivered:
+- **Ruck at the tackle** (`RuckSystem`): a held tackle (no spill) forms
+  a ruck over the placed ball. The nearest support within 9 m and a
+  defender on his feet within 3.5 m join on their own. Replaces the 2.5 s
+  placement protection (TD-027): nobody picks the ball up off the floor
+  while a ruck is on.
+- **Commit with X (both teams)**: each tap sends the nearest free player
+  running in (cap 4 a side). He binds when he gets there and only counts
+  if he is bound before the contest is decided (1.4 s). Committed players
+  are out of the line until the ruck ends (+0.5 s to get up).
+- **Contest** (`RuckModel`, pure): bodies weighted by weight and strength,
+  a jackal bonus for a defender over the ball first, and an attack bias
+  (equal numbers ≈ 8 % turnover). Turnover → the nearest bound defender
+  picks the ball up and runs.
+- **Hold with □ (defence)**: needs a defender bound; while held the ball
+  can't come out. Penalty hazard rises with seconds held (1 s ≈ 25 %,
+  2 s ≈ 60 %, 3.5 s always). Placeholder until the referee (M11):
+  PENALTY notice, ball to the attack's 9.
+- **Ball out**: the attack's 9 (or the nearest free player if the 9 is
+  down/committed) waits behind the ball and takes it out as soon as it is
+  available; on the human's team you control the 9. The defence lines up
+  2 m on its side of the ball (offside line) and marks only free attackers.
+- **AI with the same tools**: the defence bids by aggression, isolated
+  carrier and own-line proximity (2 players on an isolated carrier, 3–4
+  otherwise) and sometimes holds; the attack answers a bid to stay one
+  body ahead (misses the read 12 % of the time).
+- New player state RUCKING (bound, no collisions, placeholder bent-over
+  pose), RUCK phase in TeamControl/HUD ("RUCK 2 v 1 · X commit · □ hold"),
+  debug readout, `data/tuning/ruck.json`, `tools/ruck_soak.gd`.
+- Receivers bound in a ruck can't be passed to.
+- Tests and soaks run with `--fixed-fps 60` (no real-time pacing: the
+  suite takes ~30 s instead of ~3 min). 138 automated tests (+15).
+
+Measured (`tools/ruck_soak.gd -- 16`):
+
+AI vs AI, 32 attacks of 20 s: 139 rucks; ball out in 1.8 s on average.
+
+| | result |
+|---|---|
+| retention with normal support | 81 / 84 (96 %) |
+| isolated carrier (no support could bind in time) | lost 11 / 49 (22 %) |
+| AI defence bids | 47, won 13 (28 %) |
+| AI holds / penalties | 6 / 0 |
+| all rucks | 14 turnovers in 139 (90 % kept) |
+
+Scripted contests (48 per cell, ruck AI off; support 3–9 m away, defence
+4–12 m; "isolated": support 14+ m away, a defender on the ball):
+
+| scenario | defence taps | attack taps 0 | 2 | 4 |
+|---|---|---|---|---|
+| normal | 0 | 0 % | 0 % | 0 % |
+| normal | 4 | 66 % | 6 % | 12 % |
+| isolated | 0 | 54 % | 45 % | 45 % |
+| isolated | 4 | 87 % | 91 % | 97 % |
+
+Bodies that arrive late don't count: 4 attacking taps put 3 bodies in
+(the 4th is too far), and an isolated carrier's support can't get there
+however often you press X.
+
+Holding the ball in, penalised: 0.5 s 10 %, 1 s 25 %, 1.5 s 42 %,
+2 s 62 %, 3 s 85 %.
+
+Effect on open play (`tools/ai_soak.gd`, NEW vs NEW, 10 s attacks):
+43 m / 8 tries → 13 m / 0 tries, 28 → 47 passes, 15 → 43 tackles. M07's
+numbers came partly from the placement window: a support player picked
+the ball up instantly while the tacklers were still on the floor and the
+defence out of shape. Now each tackle costs ~1.8 s and the defence
+reforms onside, so attacks go phase by phase. Watch this at 15 v 15
+(M12) and in the playtest.
+
+Not done (by design / next):
+- the 9's box kick over the ruck (△) comes with kicking (M09);
+- real penalties, offside and sealing off are refereed in M11;
+- the score doesn't change AI commits yet (no score until M10);
+- ruck animation is a placeholder pose (TD on animation sourcing stands);
+- 6 v 6 leaves support far away: 35 % of rucks were "isolated". Expect
+  fewer at 15 v 15 with forwards.

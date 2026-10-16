@@ -33,6 +33,7 @@ var support_tuning: SupportTuning
 var defence_tuning: DefenceTuning
 var tackle_tuning: TackleTuning
 var ai_tuning: AITuning
+var ruck_tuning: RuckTuning
 ## M07: 1 = basic AI, 0 = M04-M06 placeholders (A/B soaks). Set before _ready.
 var ai_level := 1
 ## Opponents' AI level if >= 0 (A/B soaks), else ai_level. Set before _ready.
@@ -51,6 +52,7 @@ var ball: RugbyBall
 var possession: PossessionController
 var passing: PassingSystem
 var tackles: TackleSystem
+var rucks: RuckSystem
 var team_control: TeamControl
 var opp_control: TeamControl
 var camera: BroadcastCamera
@@ -71,6 +73,7 @@ func _ready() -> void:
 	defence_tuning = DefenceTuning.load_default()
 	tackle_tuning = TackleTuning.load_default()
 	ai_tuning = AITuning.load_default()
+	ruck_tuning = RuckTuning.load_default()
 	squad = PlayerProfile.load_squad(SQUAD_PATH)
 	if squad.is_empty():
 		squad.append(PlayerProfile.from_dict({"name": "Fallback", "number": 1}))
@@ -140,6 +143,16 @@ func _ready() -> void:
 		opp_control.configure_ai(TeamStyle.from_dict(opp_data.get("style", {})), ai_tuning, tackle_tuning, ai_level if opp_ai_level < 0 else opp_ai_level, 78)
 		add_child(opp_control)
 
+		rucks = RuckSystem.new()
+		rucks.name = "Rucks"
+		rucks.setup(ball, possession, [team_control, opp_control] as Array[TeamControl], ruck_tuning)
+		add_child(rucks)
+		tackles.rucks = rucks
+		team_control.ruck = rucks
+		opp_control.ruck = rucks
+		rucks.penalised.connect(func(d: Team, _held: float):
+			hud.notify("PENALTY", Color("#7cff6b") if d == opp else Color("#ff5a5f"), 1.4))
+
 	hud = MatchHud.new()
 	hud.ball = ball
 	add_child(hud)
@@ -151,6 +164,7 @@ func _ready() -> void:
 	debug_overlay.team_control = team_control
 	debug_overlay.opp_control = opp_control
 	debug_overlay.tackles = tackles
+	debug_overlay.rucks = rucks
 	add_child(debug_overlay)
 	debug_overlay.attach_world(self)
 
@@ -178,6 +192,7 @@ func _ready() -> void:
 		if p.team == team:
 			hud.notify("MISSED", Color("#f5a524"), 0.8))
 	hud.team_control = team_control
+	hud.rucks = rucks
 	passing.pass_thrown.connect(func(_p, _r, forward: bool):
 		if forward:
 			hud.notify("FORWARD PASS", Color("#ff5a5f"), 1.2))
@@ -192,6 +207,8 @@ func _ready() -> void:
 func randomize_seeds() -> void:
 	for r in [ball.rng, possession.rng, passing.rng, tackles.rng]:
 		r.randomize()
+	if rucks:
+		rucks.rng.randomize()
 	for c in [team_control, opp_control]:
 		if c and c.attack_ai:
 			c.attack_ai.rng.randomize()
@@ -203,6 +220,8 @@ func controlled_player() -> RugbyPlayer:
 
 
 func reset_play() -> void:
+	if rucks:
+		rucks.clear()
 	possession.clear_cooldowns()
 	tackles.clear()
 	for p in team.players + opp.players:
@@ -334,6 +353,9 @@ func reload_tuning() -> void:
 	tackle_tuning = TackleTuning.load_default()
 	tackles.tuning = tackle_tuning
 	ai_tuning = AITuning.load_default()
+	ruck_tuning = RuckTuning.load_default()
+	if rucks:
+		rucks.tuning = ruck_tuning
 	for p in team.players + opp.players:
 		p.contact = tackle_tuning
 	for c in [team_control, opp_control]:
@@ -341,7 +363,7 @@ func reload_tuning() -> void:
 			c.support = support_tuning
 			c.defence = defence_tuning
 			c.configure_ai(c.style, ai_tuning, tackle_tuning, c.ai_level)
-	print("Tuning reloaded (movement, ball, passing, support, defence)")
+	print("Tuning reloaded (movement, ball, passing, support, defence, tackle, ai, ruck)")
 
 
 ## Dev: bounce a loose ball toward the controlled player from ~12 m ahead.

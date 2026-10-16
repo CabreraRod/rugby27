@@ -21,6 +21,8 @@ must happen in the same tick, every time.
 | Defending: dive tackle | Space | A / Cross |
 | Carrying: fend (hand-off) | V | X / Square |
 | Carrying: sidestep left / right | Z / X | right stick flick |
+| Ruck: commit one more player (both teams) | Space | A / Cross (X) |
+| Ruck, defending: hold the ball in (risks a penalty) | V (hold) | X / Square (hold) |
 | Toggle camera (side / end-on) | C | Back/View |
 | Debug overlay | F1 | — |
 | Toggle single-player sandbox / team mode | F2 | D-pad up |
@@ -301,6 +303,35 @@ The AI drives both teams; on yours it plays everyone you don't control.
   the inside runner, orange chasers, teal cover, the AI's last decision
   in the panel.
 - Measured: see ROADMAP (tools/ai_soak.gd).
+
+## Rucks (Milestone 08)
+
+Rugby 08 rucks: quick, readable, no mini-game, but a real contest.
+
+- **Forming**: a held tackle (no spill) places the ball and forms a ruck.
+  The nearest support within 9 m and a defender on his feet within 3.5 m
+  join by themselves.
+- **X / Space — commit**: one more player per tap, both teams, up to 4.
+  He runs in and binds; only players bound within 1.4 s count. The usual
+  habit: tap twice on attack to secure it, more if the defence piles in.
+- **The contest**: the attack keeps it unless the defence wins the
+  numbers. Each body is worth its weight and strength (a 90 kg average
+  player = 1). A defender over the ball first (jackal) adds 0.7.
+  Turnover chance by the difference: equal ≈ 8 %, one more defender
+  ≈ 27 %, isolated carrier v one jackal ≈ 55 %, 4 v 1 ≈ 90 %.
+- **The cost**: committed players are out of the line until the ruck
+  ends (+0.5 s to get up). A defence that bids and loses has gaps; an
+  attack that over-commits has fewer runners.
+- **□ / V — hold (defence)**: while held (with a defender bound) the
+  ball can't come out. Penalty chance by seconds held: 1 s ≈ 25 %, 2 s
+  ≈ 60 %, 3.5 s always. For now a penalty = PENALTY notice, ball to the
+  attack's 9 (the referee comes in M11).
+- **Ball out**: the 9 waits behind the ball and takes it out as soon as
+  it is available; on your team you control him and pass from there.
+  The defence lines up 2 m on its side of the ball. Box kick (△) in M09.
+- **AI**: bids by aggression, isolation and own-line proximity; sometimes
+  holds; answers a bid to stay one body ahead.
+- Measured: see ROADMAP (`tools/ruck_soak.gd`).
 
 ## Camera
 

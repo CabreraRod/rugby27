@@ -29,6 +29,10 @@ func _enter_tree() -> void:
 	_add("sidestep_right", [KEY_X], [], [[JOY_AXIS_RIGHT_X, 1.0]], 0.7)
 	# Defence.
 	_add("dive_tackle", [KEY_SPACE], [JOY_BUTTON_A], [], 0.5)
+	# Rucks (Rugby 08): X / ✕ commits one more player, □ holds the ball in
+	# (defence). PlayStation ✕ = bottom face button (Xbox A), □ = left (Xbox X).
+	_add("ruck_commit", [KEY_SPACE], [JOY_BUTTON_A], [], 0.5)
+	_add("ruck_hold", [KEY_V], [JOY_BUTTON_X], [], 0.5)
 
 	# Camera.
 	_add("camera_toggle", [KEY_C], [JOY_BUTTON_BACK], [], 0.5)

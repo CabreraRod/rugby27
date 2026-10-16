@@ -8,6 +8,7 @@ const HINT_TIME := 9.0
 var player: RugbyPlayer
 var ball: RugbyBall
 var team_control: TeamControl
+var rucks: RuckSystem
 
 var _name_label: Label
 var _speed_label: Label
@@ -85,7 +86,7 @@ func _ready() -> void:
 	v.add_child(_stamina_bar)
 
 	_hint = Label.new()
-	_hint.text = "Move: WASD / L-stick   Sprint: Shift / RT   Pass: Q / E · LB / RB (hold = long)   Fend: V / X   Sidestep: Z / X key · R-stick flick\nDefending: run into the carrier to tackle · Dive: Space / A · Switch: Q / E · LB / RB      Camera C · Debug F1 · Sandbox F2 · Reset R"
+	_hint.text = "Move: WASD / L-stick   Sprint: Shift / RT   Pass: Q / E · LB / RB (hold = long)   Fend: V / X   Sidestep: Z / X key · R-stick flick\nDefending: run into the carrier to tackle · Dive: Space / A · Switch: Q / E · LB / RB\nRuck: X (PS) · A (Xbox) · Space: commit a player · □ (PS) · X (Xbox) · V: hold the ball in (defence, risks a penalty)      Camera C · Debug F1 · Sandbox F2 · Reset R"
 	_hint.anchor_left = 0.5
 	_hint.anchor_right = 0.5
 	_hint.offset_left = -700
@@ -111,6 +112,20 @@ func _ready() -> void:
 	_notice.add_theme_constant_override("shadow_offset_y", 2)
 	_notice.visible = false
 	add_child(_notice)
+
+
+## "RUCK  2 v 1  ·  ✕ commit  ·  □ hold" — our bodies first.
+func _ruck_text() -> String:
+	if rucks == null or not rucks.is_active():
+		return "RUCK"
+	var us := team_control.team
+	var them := team_control.opponents
+	var s := "RUCK  %d v %d  ·  X/Space commit" % [rucks.count(us), rucks.count(them)]
+	if rucks.defence == us:
+		s += "  ·  □/V hold" + ("  HOLDING %.1fs" % rucks.held_time if rucks.holding else "")
+	elif rucks.holding:
+		s += "  ·  ball held in"
+	return s
 
 
 ## Short centre-screen message (TOUCH, FUMBLED, ...). Never pauses play.
@@ -145,6 +160,9 @@ func _process(delta: float) -> void:
 			TeamControl.Phase.DEFEND:
 				_phase_label.text = "DEFENCE  ·  A dive  ·  LB/RB switch"
 				_phase_label.add_theme_color_override("font_color", Color("#ff8a8f"))
+			TeamControl.Phase.RUCK:
+				_phase_label.text = _ruck_text()
+				_phase_label.add_theme_color_override("font_color", Color("#9ad1ff"))
 			_:
 				_phase_label.text = "LOOSE BALL"
 				_phase_label.add_theme_color_override("font_color", Color("#ffd23f"))

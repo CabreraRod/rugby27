@@ -216,9 +216,10 @@ scene; tests/tools keep fixed or hashed seeds.
 - **Feel can only be partly verified by tests.** Numbers guarantee
   consistency; "satisfying" needs hands-on playtesting with keyboard and pad.
 - **Animation:** procedural limbs now carry tackles (dive/wrap/fall poses)
-  but will not scale to rucks/scrums. Animation sourcing (licensed mocap
-  vs. hand-keyed vs. procedural + physical animation) must be decided
-  before M08/M13.
+  and a placeholder bound pose for rucks, but will not scale to scrums or
+  a broadcast-quality ruck. Animation sourcing (licensed mocap vs.
+  hand-keyed vs. procedural + physical animation) must be decided before
+  M13.
 
 ## TD-029 AI decisions compare like with like (metres of room)
 The AI carrier first scored carry on ray space (up to 20 m plus a straight
@@ -249,3 +250,38 @@ and tests still use one JSON source.
 TeamControl.ai_level 0 = M05 placeholders, 1 = M07 AI (default). Keeping
 the old behaviour lets tools/ai_soak.gd prove the AI improved (spec:
 "the numbers must move"), at the cost of some dead code until M15.
+
+## TD-033 Rucks: discrete commits, one probabilistic contest (Rugby 08)
+The user asked for Rugby 08 rucks, not a mini-game: X sends one more
+player, □ holds. So the ruck is a short state machine (CONTEST → AVAILABLE
+→ out / turnover / penalty) with one roll at the end of the contest from
+a pure model (`RuckModel`): units from weight and strength, a jackal
+bonus, a logistic with an attack bias. Bodies are real players who must
+run in and bind before the contest ends, so distance and timing matter
+and committing has a cost (they leave the line). Rejected: a continuous
+push simulation (unreadable, needs animation we don't have) and a timing
+mini-game (what players dislike in modern games).
+
+## TD-034 RUCKING player state without collisions
+Bound players hold a slot around the ball with collisions off. A pile of
+capsules pushing each other made binding unreliable and hid the ball from
+the 9. Tradeoff: bodies can overlap visually; acceptable until ruck
+animation exists.
+
+## TD-035 The 9 takes the ball out automatically
+Rugby 08's 9 got the ball as soon as it was available; the human then
+passes (or, from M09, box kicks). Control moves to the 9 on the human's
+team and his movement is driven to the ball; the alternative (walk the 9
+in yourself) adds a chore and no decision.
+
+## TD-036 Penalty placeholder for holding in
+Until the referee (M11): PENALTY notice and the ball to the attack's 9.
+No territory or restart change, so holding is currently cheaper than it
+will be. The hazard curve lives in ruck.json.
+
+## TD-037 Tests and soaks run with --fixed-fps 60
+Headless runs were paced in real time (a 10 s soak took 10 s). With
+`--fixed-fps 60` physics steps as fast as the CPU allows, with the same
+results (the M07 AI soak reproduces exactly). run_tests.sh and the
+README commands use it.
+

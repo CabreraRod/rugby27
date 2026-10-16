@@ -10,6 +10,11 @@ extends Node
 ##            the DefensiveLine.
 ##   LOOSE  — nobody has it: nearest non-controlled player chases it, the
 ##            rest hold support slots around the ball.
+##   RUCK   — a ruck is on (M08): committed players run in and bind; the
+##            attack's 9 goes to the ball and the rest form a line around
+##            him; the defence lines up behind the offside line. Human: X
+##            commits a player, □ (defence) holds the ball in; on attack
+##            the human controls the 9.
 ##
 ## Human team only: pass buttons pass when you carry and switch player when
 ## you defend; control follows the ball on our side and jumps to the
@@ -18,7 +23,7 @@ extends Node
 
 signal controlled_changed(old: RugbyPlayer, new: RugbyPlayer)
 
-enum Phase { ATTACK, DEFEND, LOOSE }
+enum Phase { ATTACK, DEFEND, LOOSE, RUCK }
 
 ## Tests switch this off to drive players directly.
 var active := true
@@ -30,6 +35,8 @@ var possession: PossessionController
 var human: HumanController
 var support: SupportTuning
 var defence: DefenceTuning
+## M08: the match's ruck system (null in tests without one).
+var ruck: RuckSystem
 var controlled: RugbyPlayer
 var phase: Phase = Phase.LOOSE
 
@@ -132,11 +139,15 @@ func _physics_process(delta: float) -> void:
 			_drive_defence()
 		Phase.LOOSE:
 			_drive_loose()
+		Phase.RUCK:
+			_drive_ruck()
 	if is_human():
 		_read_buttons()
 
 
 func _phase() -> Phase:
+	if ruck and ruck.is_active():
+		return Phase.RUCK
 	if passing.in_flight and passing.flight_passer:
 		return Phase.ATTACK if team.has(passing.flight_passer) else Phase.DEFEND
 	if ball.carrier:
@@ -246,6 +257,86 @@ func _drive_defence() -> void:
 			switch_to_nearest_ball(true)
 
 
+# --- Ruck (M08) ------------------------------------------------------------------------
+
+func _drive_ruck() -> void:
+	chaser = null
+	var r := ruck
+	var attacking := r.attack == team
+	var free: Array[RugbyPlayer] = []
+	for p in team.players:
+		if r.is_committed(p):
+			if r.is_en_route(p):
+				var it := SupportRunner.steer_to(p.planar_position(), r.pos, Vector2.ZERO, p.stats.jog_top, 3.0, 0.0)
+				it.sprint = true
+				it.mag = 1.0
+				_apply(p, it)
+			else:
+				_apply(p, SupportRunner.Intent.new())
+		elif attacking and p == r.nine:
+			# The 9 goes to the ball (human or AI: the ball comes out to him).
+			if is_human() and controlled != p:
+				set_controlled(p)
+			var spot := r.nine_spot()
+			var it := SupportRunner.steer_to(p.planar_position(), spot, Vector2.ZERO, p.stats.jog_top, 3.0, 0.15)
+			it.sprint = p.planar_position().distance_to(spot) > 2.0
+			_apply(p, it)
+		else:
+			free.append(p)
+	if attacking:
+		_ruck_attack_line(free)
+	else:
+		_ruck_defence_line(free)
+
+
+func _ruck_attack_line(free: Array[RugbyPlayer]) -> void:
+	assignments.clear()
+	var anchor := ruck.nine_spot()
+	var runners: Array[RugbyPlayer] = []
+	for p in free:
+		if p != controlled:
+			runners.append(p)
+	if ai_level >= 1 and attack_ai:
+		slots = attack_ai.support_slots(anchor, team, runners, opponents)
+	else:
+		slots = SupportRunner.assign_slots(anchor, team, runners, support)
+	for p in free:
+		if p.role == RugbyPlayer.Role.DEFENDER:
+			p.set_role(RugbyPlayer.Role.NEUTRAL)
+		if p == controlled:
+			_apply(p, human.read_intent())
+		elif slots.has(p):
+			_apply(p, SupportRunner.steer(p.planar_position(), slots[p], Vector2.ZERO, p.stats.jog_top, support))
+		else:
+			_apply(p, SupportRunner.Intent.new())
+
+
+func _ruck_defence_line(free: Array[RugbyPlayer]) -> void:
+	slots.clear()
+	var ai_defenders: Array[RugbyPlayer] = []
+	for p in free:
+		if p != controlled:
+			ai_defenders.append(p)
+	# Mark only the attackers who are free to run (not the ones in the ruck).
+	var marks: Array[RugbyPlayer] = []
+	for p in opponents.players:
+		if not ruck.is_committed(p) and p != ruck.tackled:
+			marks.append(p)
+	var attack := ruck.dir
+	assignments = DefensiveLine.assign(ai_defenders, controlled, marks, null, ruck.pos, attack, defence)
+	for a in assignments:
+		a.target = ruck.offside_clamp(a.target)
+		var it := SupportRunner.steer_to(a.defender.planar_position(), a.target, a.feed, a.defender.stats.jog_top, defence.gain, defence.settle_dist)
+		_apply(a.defender, it)
+		a.defender.set_role(RugbyPlayer.Role.DEFENDER)
+	if controlled:
+		if not controlled.is_on_feet() or ruck.is_committed(controlled):
+			switch_to_nearest_ball(true)
+		if controlled and not ruck.is_committed(controlled):
+			_apply(controlled, human.read_intent())
+			controlled.set_role(RugbyPlayer.Role.DEFENDER)
+
+
 # --- Loose ball --------------------------------------------------------------------
 
 func _drive_loose() -> void:
@@ -297,6 +388,9 @@ func _apply(p: RugbyPlayer, it: SupportRunner.Intent) -> void:
 func _read_buttons() -> void:
 	if controlled == null:
 		return
+	if phase == Phase.RUCK:
+		_read_ruck_input()
+		return
 	if ball.carrier == controlled:
 		_read_pass_input()
 		if Input.is_action_just_pressed("fend"):
@@ -314,6 +408,20 @@ func _read_buttons() -> void:
 		if Input.is_action_just_pressed(PASS_ACTIONS[i]):
 			switch_to_nearest_ball(true)
 			return
+
+
+## X commits one more player; □ (defence) holds the ball in while pressed.
+## On defence the pass buttons still switch player.
+func _read_ruck_input() -> void:
+	_input_charge = false
+	if Input.is_action_just_pressed("ruck_commit"):
+		ruck.commit(team)
+	if ruck.defence == team:
+		ruck.set_hold(team, Input.is_action_pressed("ruck_hold"))
+		for i in PASS_ACTIONS.size():
+			if Input.is_action_just_pressed(PASS_ACTIONS[i]):
+				switch_to_nearest_ball(true)
+				return
 
 
 func _read_pass_input() -> void:
@@ -338,7 +446,9 @@ func switch_to_nearest_ball(exclude_current: bool) -> void:
 	for p in team.players:
 		if exclude_current and p == controlled:
 			continue
-		if p.state == RugbyPlayer.State.GROUNDED or p.state == RugbyPlayer.State.GETTING_UP:
+		if not p.is_on_feet():
+			continue
+		if ruck and ruck.is_committed(p):
 			continue
 		var d := p.planar_position().distance_to(b)
 		if d < best_d:

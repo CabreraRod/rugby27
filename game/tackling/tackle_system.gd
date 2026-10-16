@@ -16,6 +16,8 @@ var tuning: TackleTuning
 var ball: RugbyBall
 var possession: PossessionController
 var players: Array[RugbyPlayer] = []
+## M08: held tackles form a ruck here (null = the old placement protection).
+var rucks: RuckSystem
 var rng := RandomNumberGenerator.new()
 ## Debug: last tackle evaluation.
 var last_result: TackleModel.Result
@@ -105,10 +107,14 @@ func tackle(d: RugbyPlayer, carrier: RugbyPlayer) -> TackleModel.Result:
 			d.go_to_ground(tackler_time, d.planar_velocity * 0.2, true)
 			if r.spill:
 				possession.spill(carrier)
-			else:
-				possession.protect(carrier.team, tuning.placement_protect)
 			carrier.play_action(&"tackled", 0.4)
 			carrier.go_to_ground(tuning.tackled_ground, after)
+			# Going to ground placed the ball: a ruck forms over it.
+			if not r.spill:
+				if rucks:
+					rucks.form(carrier)
+				else:
+					possession.protect(carrier.team, tuning.placement_protect)
 	tackle_made.emit(d, carrier, r)
 	return r
 

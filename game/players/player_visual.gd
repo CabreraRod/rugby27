@@ -33,6 +33,7 @@ var _roll := 0.0
 var _ground_blend := 0.0
 var _carry_blend := 0.0
 var _dive_blend := 0.0
+var _ruck_blend := 0.0
 var _number: Label3D
 
 
@@ -174,6 +175,10 @@ func _process(delta: float) -> void:
 	var dive := 1.0 if player.state == RugbyPlayer.State.DIVING else 0.0
 	_dive_blend = lerpf(_dive_blend, dive, 1.0 - exp(-16.0 * delta))
 	var pitch := lerpf(_pitch, -1.1, _dive_blend)
+	# Bound in a ruck: bent at the hips, driving forward (M08 placeholder pose).
+	var rucking := 1.0 if player.state == RugbyPlayer.State.RUCKING else 0.0
+	_ruck_blend = lerpf(_ruck_blend, rucking, 1.0 - exp(-12.0 * delta))
+	pitch = lerpf(pitch, -0.95, _ruck_blend)
 	_lean.rotation = Vector3(lerpf(pitch, -1.45, _ground_blend), 0.0, _roll * (1.0 - _ground_blend))
 
 	# Stride cycle: frequency rises with speed, stride lengthens.
@@ -193,6 +198,10 @@ func _process(delta: float) -> void:
 	_arm_r.rotation.x = lerpf(_arm_r.rotation.x, 0.75, _carry_blend)
 	_arm_r.rotation.z = lerpf(0.12, -0.25, _carry_blend)
 	_body.position.y = absf(cos(_phase)) * 0.06 * amp - 0.03 * amp
+	if _ruck_blend > 0.05:
+		# Arms bound over the next man.
+		_arm_l.rotation = _arm_l.rotation.lerp(Vector3(1.35, 0.0, 0.3), _ruck_blend)
+		_arm_r.rotation = _arm_r.rotation.lerp(Vector3(1.35, 0.0, -0.3), _ruck_blend)
 	_apply_action_pose()
 
 	# Indicator only on the controlled player; hidden when grounded.

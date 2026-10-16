@@ -14,6 +14,7 @@ enum State {
 	DIVING,       ## Dive tackle lunge: committed, no steering.
 	GROUNDED,     ## On the ground (tackled, tackler, missed dive, dev key).
 	GETTING_UP,   ## Recovering to feet, no control.
+	RUCKING,      ## Bound in a ruck (M08): held at a slot, no control, no collisions.
 }
 
 ## Situational role. Affects movement; later drives ball/tackle systems.
@@ -77,6 +78,11 @@ var _intent_mag := 0.0
 var _intent_sprint := false
 var _intent_speed := -1.0
 var _state_timer := 0.0
+## Ruck binding (M08): where to stand and which way to face.
+var ruck_slot := Vector2.ZERO
+var ruck_face := Vector2(1.0, 0.0)
+var _saved_layer := 0
+var _saved_mask := 0
 
 
 func setup(p_profile: PlayerProfile, p_tuning: MovementTuning) -> void:
@@ -138,6 +144,8 @@ func simulate(dt: float) -> void:
 			_tick_grounded(dt)
 		State.GETTING_UP:
 			_tick_getting_up(dt)
+		State.RUCKING:
+			_tick_rucking(dt)
 
 	# Vertical: simple gravity, players do not jump.
 	if is_on_floor():
@@ -207,6 +215,54 @@ func _tick_getting_up(dt: float) -> void:
 	_state_timer -= dt
 	if _state_timer <= 0.0:
 		_set_state(State.LOCOMOTION)
+
+
+func _tick_rucking(dt: float) -> void:
+	is_sprinting = false
+	stamina.step(false, false, 0.0, tuning, dt)
+	# Settle onto the binding slot (no collisions while bound).
+	var to_slot := ruck_slot - planar_position()
+	planar_velocity = to_slot * 8.0 if to_slot.length() > 0.03 else Vector2.ZERO
+	if planar_velocity.length() > 4.0:
+		planar_velocity = planar_velocity.normalized() * 4.0
+	facing = facing.slerp(ruck_face, minf(1.0, 12.0 * dt)).normalized()
+
+
+## Binds into a ruck at `slot`, facing `face` (M08). Only from running.
+func bind_ruck(slot: Vector2, face: Vector2) -> bool:
+	if state != State.LOCOMOTION:
+		return false
+	ruck_slot = slot
+	ruck_face = face.normalized()
+	_saved_layer = collision_layer
+	_saved_mask = collision_mask
+	collision_layer = 0
+	collision_mask = PhysicsLayers.WORLD
+	_set_state(State.RUCKING)
+	return true
+
+
+## Leaves a ruck: back on the feet after `recover` seconds (0 = at once).
+func leave_ruck(recover: float) -> void:
+	if state != State.RUCKING:
+		return
+	collision_layer = _saved_layer
+	collision_mask = _saved_mask
+	planar_velocity = Vector2.ZERO
+	if recover > 0.0:
+		_set_state(State.GETTING_UP)
+		_state_timer = recover
+	else:
+		_set_state(State.LOCOMOTION)
+
+
+func is_rucking() -> bool:
+	return state == State.RUCKING
+
+
+## On the feet and able to act (running, or committed to a dive).
+func is_on_feet() -> bool:
+	return state == State.LOCOMOTION or state == State.DIVING
 
 
 ## Puts the player on the ground for `time` seconds (default: dev ground
@@ -296,6 +352,8 @@ func set_role(r: Role) -> void:
 
 
 func reset_to(pos: Vector3, face: Vector2 = Vector2(1, 0)) -> void:
+	if state == State.RUCKING:
+		leave_ruck(0.0)
 	global_position = pos
 	velocity = Vector3.ZERO
 	planar_velocity = Vector2.ZERO

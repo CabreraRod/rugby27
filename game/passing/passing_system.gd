@@ -101,7 +101,10 @@ func is_long_charge() -> bool:
 func preview(passer: RugbyPlayer, side: int, long: bool) -> RugbyPlayer:
 	if passer.team == null:
 		return null
-	var mates := passer.team.teammates_of(passer)
+	var mates: Array[RugbyPlayer] = []
+	for m in passer.team.teammates_of(passer):
+		if not m.is_rucking():   # bound in a ruck: not a receiver
+			mates.append(m)
 	var pos: Array[Vector2] = []
 	for m in mates:
 		pos.append(m.planar_position())

@@ -32,6 +32,9 @@ var _cooldown := {}   # instance id -> seconds
 ## M08 ruck), while _protect_timer > 0.
 var protected_team: Team
 var _protect_timer := 0.0
+## M08: while a ruck is on, nobody picks the ball up — the RuckSystem
+## decides who gets it (the 9, or a defender on a turnover).
+var ruck_lock := false
 
 
 func setup(p_ball: RugbyBall, p_tuning: BallTuning, p_players: Array[RugbyPlayer], seed_value: int = 8) -> void:
@@ -57,7 +60,7 @@ func _physics_process(delta: float) -> void:
 		_protect_timer -= delta
 		if _protect_timer <= 0.0:
 			protected_team = null
-	if ball == null or not ball.is_loose():
+	if ball == null or not ball.is_loose() or ruck_lock:
 		return
 	var airborne := pass_tuning != null and not ball.on_ground and ball.global_position.y > pass_tuning.catch_min_height
 	var best: RugbyPlayer = null
@@ -171,7 +174,8 @@ func attempt_catch(p: RugbyPlayer) -> bool:
 	return false
 
 
-## Only `team` may gather the loose ball for `seconds` (tackle placement).
+## Only `team` may gather the loose ball for `seconds` (tackle placement
+## fallback when there is no RuckSystem, e.g. isolated tests).
 func protect(team: Team, seconds: float) -> void:
 	protected_team = team
 	_protect_timer = seconds
@@ -195,6 +199,7 @@ func clear_cooldowns() -> void:
 	_cooldown.clear()
 	protected_team = null
 	_protect_timer = 0.0
+	ruck_lock = false
 
 
 ## Dev / future knock-on: carrier loses the ball forward.

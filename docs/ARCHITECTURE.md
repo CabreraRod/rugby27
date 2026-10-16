@@ -1,6 +1,6 @@
 # Rugby 27 — Architecture
 
-Status: Milestone 06 — tackling (6 v 6, human vs AI team, passing, tackling, turnovers; placeholder AI).
+Status: Milestone 08 — rucks (6 v 6, human vs AI team, passing, tackling, basic AI, Rugby 08 rucks).
 
 ## Principles
 
@@ -32,9 +32,10 @@ Defined in `game/field/field_dimensions.gd` and used everywhere:
 ```
 match/        composition: bootstrap, Team, TeamControl (later MatchDirector)
   ├─ ui/, debug/, camera/, presentation/   read-only views
-  ├─ tackling/ TackleSystem → TackleModel core
+  ├─ rucks/    RuckSystem → RuckModel core
+  ├─ tackling/ TackleSystem → TackleModel core (forms rucks)
   ├─ passing/  PassingSystem → targeting / solver / catch cores
-  ├─ ai/       SupportRunner, DefensiveLine, AttackBrain (placeholders; M06 AI)
+  ├─ ai/       AttackAI, SpaceEval, DefensiveLine, SupportRunner, TeamStyle (AttackBrain = M05 placeholder)
   ├─ ball/     PossessionController → RugbyBall → bounce/pickup cores
   ├─ players/  controllers → RugbyPlayer → locomotion cores
   ├─ field/    pitch geometry, zones, builder
@@ -60,7 +61,7 @@ data/          JSON (tuning, players, teams)
 | `game/players/locomotion/stamina_model.gd` | Sprint drain, regen delay, soft fatigue, lockout hysteresis. |
 | `game/players/player_attributes.gd` | 1–99 ratings, normalized accessors. |
 | `game/players/player_profile.gd` | Name/number/position/attributes from JSON. |
-| `game/players/rugby_player.gd` | `CharacterBody3D`: state machine, role, facing, physics integration; `set_intent(dir, mag, sprint, speed?)`; team, `is_controlled`, cosmetic action cues. |
+| `game/players/rugby_player.gd` | `CharacterBody3D`: state machine (incl. RUCKING: bound, no collisions), role, facing, physics integration; `set_intent(dir, mag, sprint, speed?)`; team, `is_controlled`, cosmetic action cues. |
 | `game/players/human_controller.gd` | Camera-relative device input → intent (`read_intent()`); `scripted` override for tests/captures. |
 | `game/players/player_visual.gd` | Procedural body, run cycle/lean, carry/pass/catch poses, shirt number, control ring. |
 | `game/camera/broadcast_camera.gd` | Side/end-on broadcast camera, look-ahead, critically-damped follow. |
@@ -79,6 +80,10 @@ data/          JSON (tuning, players, teams)
 | `game/tackling/tackle_tuning.gd` | Tackle + carrier-move parameters (`data/tuning/tackle.json`). |
 | `game/tackling/tackle_model.gd` | Pure tackle resolution: power vs. resistance, outcomes, spills, carrier velocity after. |
 | `game/tackling/tackle_system.gd` | Contact detection (incl. dive reach), applies outcomes, placement protection, dive-miss tracking. |
+| `game/rucks/ruck_tuning.gd` | Ruck parameters (`data/tuning/ruck.json`). |
+| `game/rucks/ruck_model.gd` | Pure ruck maths: body units, contest P(turnover) with jackal bonus, hold penalty hazard, AI bid/counter/hold choices. |
+| `game/rucks/ruck_system.gd` | Ruck state machine: forms at a held tackle, commits (X), binding, contest, hold (□) and penalty, ball to the 9 or turnover, AI for both sides. |
+| `tools/ruck_soak.gd` | AI vs AI ruck stats, scripted commit matrix, hold penalty curve. |
 | `game/ai/defence_tuning.gd` | Defence + AI-carrier parameters (`data/tuning/defence.json`). |
 | `game/ai/defensive_line.gd` | Pure defensive assignment: pursuer, man-for-man drift, sweepers, line speed, own-line clamp; with AI tuning: intercept-based pursuer, chase when beaten, cover, engage + dive decision. |
 | `game/ai/attack_brain.gd` | M05 placeholder AI carrier (kept as AI level 0 for A/B soaks). |
@@ -111,7 +116,10 @@ data/          JSON (tuning, players, teams)
 3. `RugbyPlayer._physics_process` (0): stamina → stats → `LocomotionModel.step` →
    facing → `momentum_velocity` saved → `move_and_slide` (Jolt) → velocity read back.
 3b. `TackleSystem` (3): carrier in contact with an opponent → TackleModel →
-   ground players / place or spill the ball.
+   ground players / place or spill the ball → `RuckSystem.form()`.
+3c. `RuckSystem` (4): binding, AI commits/holds, contest, ball to the 9 or
+   a turnover. TeamControl's RUCK phase steers committed players, the 9
+   and both lines; `PossessionController.ruck_lock` blocks pickups.
 4. `PossessionController` (5): ball near the ground within reach → pickup;
    in the air at catch height → catch at closest approach.
 5. `RugbyBall._physics_process` (10): held ball follows the carry socket;
@@ -125,7 +133,7 @@ while gameplay stays fixed-step and deterministic.
 ## Planned layout (folders created when their milestone starts)
 
 ```
-game/tackling/  game/rucks/  game/scrums/
+game/scrums/
 game/lineouts/  game/kicking/  game/referee/  game/rules/
 teams/{players,tactics,formations}/  competitions/  career/  audio/  animations/  assets/
 ```
@@ -137,9 +145,11 @@ Empty placeholder folders are deliberately **not** created now.
 - **Rules (M11):** `RugbyBall.released(by, velocity, reason)` and
   `went_dead(zone, point)` are the events the referee will consume
   (knock-on = forward release by hands; touch → lineout).
-- **Rucks (M08):** `PossessionController.protect()` is the placeholder;
-  a RuckSystem replaces it (bodies arriving at the tackle, contest, quick
-  vs. slow ball).
+- **Kicking (M09):** the 9 waits at `RuckSystem.nine_spot()`; the box
+  kick (△) hooks in where `_give_to_nine()` hands him the ball.
+- **Rules (M11):** `RuckSystem.penalised` is the event the referee will
+  turn into a real penalty (today: placeholder, ball to the 9);
+  `offside_clamp()` is where offside at the ruck gets enforced.
 - **AI (M07):** replaces `SupportRunner`/`DefensiveLine`/`AttackBrain`
   behind the same `set_intent()` API; can pass via `PassingSystem.throw_to()`
   and query `TackleModel.evaluate()` to judge contact.

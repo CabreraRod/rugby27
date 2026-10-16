@@ -21,6 +21,7 @@ var passing: PassingSystem
 var team_control: TeamControl
 var opp_control: TeamControl
 var tackles: TackleSystem
+var rucks: RuckSystem
 
 var _label: Label
 var _lines: MeshInstance3D
@@ -189,6 +190,16 @@ func _ball_lines() -> Array:
 	if tackles and tackles.last_result:
 		var r := tackles.last_result
 		lines.append("tackle    %s by %s  p_break %.0f%%  p_dom %.0f%%  score %.2f  appr %.1f" % [TackleModel.Outcome.keys()[r.outcome], tackles.last_tackler.profile.short_label() if tackles.last_tackler else "-", r.p_break * 100.0, r.p_dominant * 100.0, r.score, r.approach])
+	if rucks and rucks.is_active():
+		var r := rucks
+		var line := "ruck      %s t %.2f  att %d (bound %d)  def %d (bound %d)" % [RuckSystem.Phase.keys()[r.phase], r.time, r.count(r.attack), r.bound_count(r.attack), r.count(r.defence), r.bound_count(r.defence)]
+		if r.result:
+			line += "  p_turnover %.0f%%%s" % [r.result.p_turnover * 100.0, " JACKAL" if r.result.jackal else ""]
+		if r.holding:
+			line += "  HOLD %.1fs" % r.held_time
+		lines.append(line)
+	elif rucks and rucks.last_outcome != &"":
+		lines.append("ruck      last: %s" % rucks.last_outcome)
 	if player and player.contact:
 		lines.append("moves     fend %.2f  sidestep %.2f" % [player.fend_timer, player.sidestep_timer])
 	if passing:
