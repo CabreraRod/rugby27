@@ -239,6 +239,12 @@ func _apply_action_pose() -> void:
 			_arm_l.rotation = Vector3(lerpf(0.2, 1.55, punch), 0.0, 0.05)
 		&"tackled":
 			_arm_l.rotation = Vector3(2.2, 0.0, -0.4)
+		&"kick":
+			# Kicking leg swings through, arms out for balance.
+			var swing := sin(clampf(t * 1.4, 0.0, 1.0) * PI)
+			_leg_r.rotation.x = lerpf(-0.6, 1.4, clampf(t * 1.8, 0.0, 1.0)) * swing + 0.2 * (1.0 - swing)
+			_arm_l.rotation = Vector3(0.4, 0.0, -0.9)
+			_arm_r.rotation = Vector3(0.4, 0.0, 0.9)
 
 
 static func _facing_to_yaw(f: Vector2) -> float:

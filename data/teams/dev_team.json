@@ -2,7 +2,7 @@
 	"_comment": "Fictional development team. lineup: shirt numbers from dev_squad.json + start position [x, z] in metres (attacking +X; -Z is the attackers' left). The first entry starts with the ball.",
 	"name": "Development XV",
 	"attack_dir": 1,
-	"style": { "tempo": 75, "width": 70, "aggression": 65, "passing": 75 },
+	"style": { "tempo": 75, "width": 70, "aggression": 65, "passing": 75, "kicking": 40 },
 	"kit": {
 		"jersey": "#1f4fa3",
 		"shorts": "#f2f2f2",

@@ -48,6 +48,10 @@ var nine: RugbyPlayer
 var holding := false
 var held_time := 0.0
 var result: RuckModel.Result
+## The 9 who just took the ball out, where and how long ago (box kicks, M09).
+var base_player: RugbyPlayer
+var base_pos := Vector2.ZERO
+var base_time := INF
 ## The AI defence bid for the ball in this ruck (debug / soaks).
 var ai_bid := false
 ## Stats for the debug overlay / soaks: last outcome (&"out", &"turnover", &"penalty", &"cancelled").
@@ -201,6 +205,11 @@ func offside_clamp(p: Vector2) -> Vector2:
 	return p
 
 
+## `p` has the ball at the base of the ruck it just came out of.
+func at_base(p: RugbyPlayer, window: float, radius: float) -> bool:
+	return p != null and p == base_player and ball.carrier == p and base_time <= window and p.planar_position().distance_to(base_pos) <= radius
+
+
 func ball_available() -> bool:
 	return phase == Phase.AVAILABLE and not holding
 
@@ -208,6 +217,7 @@ func ball_available() -> bool:
 # --- tick ---------------------------------------------------------------------------
 
 func _physics_process(delta: float) -> void:
+	base_time += delta
 	if not is_active():
 		return
 	time += delta
@@ -313,6 +323,9 @@ func _give_to_nine(outcome: StringName) -> void:
 	_finish(outcome)
 	if n and n.is_on_feet():
 		possession.last_gain = &"ruck"
+		base_player = n
+		base_pos = pos
+		base_time = 0.0
 		ball.attach(n)
 	ended.emit(att, outcome)
 

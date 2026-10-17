@@ -113,6 +113,16 @@ func place(at: Vector3, reason: StringName) -> void:
 	released.emit(by, Vector3.ZERO, reason)
 
 
+## Kicks the ball from the carrier's hands: off the boot at `at` with `v`.
+func kick(at: Vector3, v: Vector3, by: RugbyPlayer) -> void:
+	_detach()
+	last_touched_by = by
+	global_position = at
+	reset_physics_interpolation()
+	_go_loose(v)
+	released.emit(by, v, &"kick")
+
+
 ## Knocks a loose ball (fumbled pickup, dropped catch).
 func knock(v: Vector3, by: RugbyPlayer, reason: StringName = &"fumble") -> void:
 	last_touched_by = by

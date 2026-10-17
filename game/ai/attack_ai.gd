@@ -20,6 +20,8 @@ var t: AITuning
 var style: TeamStyle
 var support: SupportTuning      ## already scaled by style
 var tackle_t: TackleTuning
+## M09: kicking (null = this AI never kicks).
+var kicks: KickSystem
 var rng := RandomNumberGenerator.new()
 
 ## Debug.
@@ -30,6 +32,8 @@ var inside_runner: RugbyPlayer
 var _think := 0.0
 var _carrier_id := 0
 var _line_score := -INF
+## Kick options already rolled for this carrier (each at most once per possession).
+var _kick_rolled := {}
 
 
 func _init(p_t: AITuning, p_style: TeamStyle, p_support: SupportTuning, p_tackle: TackleTuning, seed_value: int = 77) -> void:
@@ -68,6 +72,7 @@ func carrier_intent(carrier: RugbyPlayer, team: Team, opponents: Team, passing: 
 		current_line = attack
 		_line_score = -INF
 		_think = 0.0
+		_kick_rolled.clear()
 	_reflexes(carrier, attack, opponents)
 	_think -= dt
 	if _think <= 0.0:
@@ -119,6 +124,9 @@ func _decide(carrier: RugbyPlayer, team: Team, opponents: Team, defenders: Array
 	# carrier's room is the space down his line, but never more than the gap
 	# to the man about to tackle him; the break chance only counts as
 	# contact actually nears.
+	if kicks and (kicks.charging or _consider_kick(carrier, team, opponents, threat_d)):
+		return
+
 	var line_space := SpaceEval.ray_space(pos, current_line, defenders, t.ray_range)
 	var carry_space := minf(minf(line_space, threat_d * 1.2), t.receiver_space_cap)
 	var closeness := 1.0 - clampf(threat_d / maxf(t.pass_consider_dist, 0.1), 0.0, 1.0)
@@ -149,6 +157,62 @@ func _decide(carrier: RugbyPlayer, team: Team, opponents: Team, defenders: Array
 	if best > carry + margin or must:
 		last_decision = "pass %s%s %.1f > carry %.1f" % ["L" if best_side == PassTargeting.LEFT else "R", " long" if best_long else "", best, carry]
 		passing.throw(carrier, best_side, best_long)
+
+
+## M09 kicking, Rugby 08 habits: the 9 box kicks from the base of a ruck in
+## his own half; a carrier pinned in his own 22 clears to touch; flat,
+## close defence with nobody behind invites a grubber; the odd up and under
+## from midfield. Team style "kicking" scales the appetite. Each option is
+## rolled at most once per possession. True if a kick has started.
+func _consider_kick(carrier: RugbyPlayer, team: Team, opponents: Team, threat_d: float) -> bool:
+	var kt := kicks.tuning
+	var attack := team.attack()
+	var pos := carrier.planar_position()
+	var along := pos.dot(attack)                       # 0 = halfway, +50 = their line
+	var appetite := style.n("kicking")
+	var skill := carrier.profile.attributes.norm("kicking")
+	# Box kick from the base of a ruck.
+	if kicks.low_or_box(carrier) == KickModel.Type.BOX and (along < 0.0 or kt.ai_box_own_half < 0.5) and _roll(&"box", kt.ai_box_p * (0.5 + appetite)):
+		var side := signf(pos.y) if absf(pos.y) > 1.0 else 1.0
+		var dir := attack.rotated(deg_to_rad(15.0) * side * signf(attack.x))
+		return _start_kick(carrier, KickModel.Type.BOX, dir, KickModel.charge_for(KickModel.Type.BOX, 22.0, skill, kt), "box kick")
+	# Clearance to touch from the own 22 under pressure.
+	if along < -FieldDimensions.HALF_LENGTH + kt.ai_own22_dist and threat_d < kt.ai_clear_pressure and _roll(&"clear", kt.ai_clear_p * (0.6 + 0.8 * appetite)):
+		var dist := KickModel.max_distance(KickModel.Type.LONG, skill, kt) * 0.9
+		var dir := KickModel.touch_aim(pos, attack, dist, kt.ai_touch_margin)
+		return _start_kick(carrier, KickModel.Type.LONG, dir, 0.9, "clear to touch")
+	# Grubber in behind a flat line.
+	if along > 0.0 and threat_d < kt.ai_grubber_line and opponents and _nobody_behind(pos, attack, opponents, threat_d + kt.ai_grubber_space) and _roll(&"grubber", kt.ai_grubber_p * (0.5 + appetite)):
+		return _start_kick(carrier, KickModel.Type.LOW, attack, KickModel.charge_for(KickModel.Type.LOW, 12.0, skill, kt), "grubber")
+	# Up and under from midfield.
+	if along > -10.0 and along < 20.0 and _roll(&"high", kt.ai_high_p * appetite):
+		return _start_kick(carrier, KickModel.Type.HIGH, attack, KickModel.charge_for(KickModel.Type.HIGH, 30.0, skill, kt), "up and under")
+	return false
+
+
+func _roll(key: StringName, p: float) -> bool:
+	if _kick_rolled.has(key):
+		return false
+	_kick_rolled[key] = true
+	return rng.randf() < p
+
+
+func _start_kick(carrier: RugbyPlayer, type: KickModel.Type, dir: Vector2, charge: float, label: String) -> bool:
+	if kicks.begin_ai(carrier, type, dir, charge):
+		last_decision = "kick: %s (charge %.0f%%)" % [label, charge * 100.0]
+		return true
+	return false
+
+
+## No defender (on his feet) deeper than `depth` ahead of `pos`, within 12 m laterally.
+static func _nobody_behind(pos: Vector2, attack: Vector2, opponents: Team, depth: float) -> bool:
+	for d in opponents.players:
+		if not d.is_on_feet():
+			continue
+		var rel := d.planar_position() - pos
+		if rel.dot(attack) > depth and absf(rel.dot(Vector2(-attack.y, attack.x))) < 12.0:
+			return false
+	return true
 
 
 ## How good a pass to `r` looks: space around where he'll be, minus a risky

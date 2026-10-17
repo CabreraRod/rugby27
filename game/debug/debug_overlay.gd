@@ -22,6 +22,7 @@ var team_control: TeamControl
 var opp_control: TeamControl
 var tackles: TackleSystem
 var rucks: RuckSystem
+var kicks: KickSystem
 
 var _label: Label
 var _lines: MeshInstance3D
@@ -200,6 +201,13 @@ func _ball_lines() -> Array:
 		lines.append(line)
 	elif rucks and rucks.last_outcome != &"":
 		lines.append("ruck      last: %s" % rucks.last_outcome)
+	if kicks:
+		if kicks.charging:
+			lines.append("kick      charging %s %.0f%%  aim (%.2f, %.2f)%s" % [KickModel.type_name(kicks.charge_type), kicks.charge() * 100.0, kicks.aim.x, kicks.aim.y, "  AI→%.0f%%" % (kicks.ai_target * 100.0) if kicks.ai_target >= 0.0 else ""])
+		elif kicks.in_flight:
+			lines.append("kick      %s in the air %.1f/%.1f s  lands (%.1f, %.1f)  catch (%.1f, %.1f)" % [KickModel.type_name(kicks.kick_type), kicks.flight_age, kicks.flight_time, kicks.landing.x, kicks.landing.y, kicks.catch_point.x, kicks.catch_point.y])
+		elif kicks.last_strike:
+			lines.append("kick      last %s planned %.0f m%s" % [KickModel.type_name(kicks.kick_type), kicks.last_strike.planned, "  drop err %+.2f" % kicks.last_strike.drop_error if kicks.kick_type == KickModel.Type.DROP else ""])
 	if player and player.contact:
 		lines.append("moves     fend %.2f  sidestep %.2f" % [player.fend_timer, player.sidestep_timer])
 	if passing:

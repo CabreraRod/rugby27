@@ -3,7 +3,7 @@
 	"name": "Opposition XV",
 	"squad": "res://data/players/dev_opp_squad.json",
 	"attack_dir": -1,
-	"style": { "tempo": 55, "width": 50, "aggression": 75, "passing": 55 },
+	"style": { "tempo": 55, "width": 50, "aggression": 75, "passing": 55, "kicking": 65 },
 	"kit": {
 		"jersey": "#b3262d",
 		"shorts": "#1b1b1b",

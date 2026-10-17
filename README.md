@@ -3,12 +3,13 @@
 A modern spiritual successor to classic console rugby. Original code, original
 procedural assets. Built incrementally: every milestone is playable.
 
-**Current state:** Milestone 08 — 6 v 6 with tackling, a basic AI on both
-sides and Rugby 08 rucks: every held tackle forms a ruck, both teams
-commit players with X, the defence can hold the ball in with □ (risking a
-penalty), and the ball comes out to the 9 or is turned over. Team styles
-(tempo, width, aggression, passing) change how each side plays. F2
-switches to a single-player sandbox.
+**Current state:** Milestone 09 — 6 v 6 with tackling, a basic AI on both
+sides, Rugby 08 rucks (commit with ✕, hold with □) and Rugby 08 kicking:
+hold ✕ / □ / △ / ○ to charge a long kick, a high kick, a grubber (a box
+kick for the 9 at a ruck) or a drop goal, aim with the stick along the
+blue arrow, release to kick. Team styles (tempo, width, aggression,
+passing, kicking) change how each side plays. F2 switches to a
+single-player sandbox.
 
 ## Run
 
@@ -26,17 +27,21 @@ switches to a single-player sandbox.
 | Pass left / right (tap = quick, hold = long) | Q / E | LB / RB |
 | Defending: switch player | Q / E | LB / RB |
 | Defending: tackle / dive tackle | run into the carrier / Space | run into the carrier / A |
-| Carrying: fend / sidestep | V / Z, X | X / right-stick flick |
+| Carrying: fend / sidestep | Ctrl+Space / Z, X | LT+A / right-stick flick |
+| Carrying: long kick (hold, aim, release) | Space | A (Xbox) / ✕ (PS) |
+| Carrying: high kick | V | X / □ |
+| Carrying: grubber (the 9 at a ruck: box kick) | F | Y / △ |
+| Carrying: drop goal | G | B / ○ |
 | Ruck: commit a player | Space | A (Xbox) / ✕ (PS) |
 | Ruck, defending: hold the ball in | hold V | hold X (Xbox) / □ (PS) |
 | Camera side / end-on | C | Back |
 | Debug overlay | F1 | — |
 | Sandbox (one player) ↔ team mode | F2 | D-pad up |
 | Pick up the ball | run over it | run over it |
-| Dev: drop ball / toss ball | F / T | — / D-pad down |
-| Dev: ground / role / next player / reset / reload tuning | G / B / N / R / F5 | B / — / Y / Start / — |
+| Dev: drop ball / toss ball | F6 / T | — / D-pad down |
+| Dev: ground / role / next player / reset / reload tuning | F7 / B / N / R / F5 | — / — / — / Start / — |
 
-All feel lives in `data/tuning/*.json` (movement, ball, passing, support, defence, tackle, ai, ruck) —
+All feel lives in `data/tuning/*.json` (movement, ball, passing, support, defence, tackle, ai, ruck, kick) —
 edit while the game runs and press **F5** to hot-reload. Pass directions are
 the attacker's left/right, not the screen's.
 
@@ -50,6 +55,7 @@ godot --headless --fixed-fps 60 --path . --script res://tools/defence_soak.gd  #
 godot --headless --fixed-fps 60 --path . --script res://tools/tackle_soak.gd   # tackle stats
 godot --headless --fixed-fps 60 --path . --script res://tools/ai_soak.gd       # AI vs AI A/B matrix
 godot --headless --fixed-fps 60 --path . --script res://tools/ruck_soak.gd     # ruck retention / bids / holds
+godot --headless --fixed-fps 60 --path . --script res://tools/kick_soak.gd     # kick range / fielding / drops / AI kicks
 ```
 
 ## Docs

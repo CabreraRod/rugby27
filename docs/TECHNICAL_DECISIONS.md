@@ -285,3 +285,30 @@ Headless runs were paced in real time (a 10 s soak took 10 s). With
 results (the M07 AI soak reproduces exactly). run_tests.sh and the
 README commands use it.
 
+## TD-038 Kicks: charge → distance, simulated flight (Rugby 08)
+The user described Rugby 08's kicking: hold to charge, a blue arrow shows
+where it goes, release. So the charge maps to a planned distance (per kick
+type, range by kicking attribute) and the launch speed is solved by
+simulating the same gravity + air damping the ball uses. The arrow, the
+receivers and the AI all read the same predicted flight. Rejected: a
+power/accuracy swing meter for open-play kicks (not how 08 played; the
+meter belongs to goal kicking, M10).
+
+## TD-039 Drop goal sweet spot in charge space
+○ charges a meter; the sweet spot is a window around 50 % whose width
+grows with kicking and shrinks with distance. Inside the window the strike
+is clean and aimed between the posts; outside it the ball hooks/slices
+(yaw proportional to the error) and loses or gains speed. A hard speed cap
+by kicking attribute sets the range. Readable on the HUD as a green zone.
+
+## TD-040 Fend moves to LT + ✕
+□ is the high kick, so the fend can't stay on X/□. Rugby 08 used LT + a
+face button for skill moves; LT + ✕ (Ctrl + Space) is the fend. Sidestep
+stays on the right stick.
+
+## TD-041 Kick catches use their own model
+A kick coming down is caught with KickModel.catch_chance (handling,
+catcher speed, contested within 1.8 m) instead of the pass model (built
+for flat, chest-high passes). Nobody can catch a kick in its first 0.2 s
+(no plucking it off the boot).
+

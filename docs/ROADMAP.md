@@ -13,8 +13,8 @@ stop for review. No skipping ahead.
 | 06 | Tackling (swapped with AI) | ✅ | Tackle outcome from speed/angle/strength/timing; break tackles |
 | 07 | Basic AI (swapped with tackling) | ✅ | Real attacking/defensive decisions replacing the placeholders |
 | 08 | Rucks | ✅ | Rugby 08 rucks: commit with X, hold with □, turnovers, ball to the 9 |
-| 09 | Kicking | ⏭ next | Punt, grubber, chip, high, touch-finder, box kick from the ruck (△); kick chase |
-| 10 | Scoring | | Tries, conversions, drop goals, penalty goals |
+| 09 | Kicking | ✅ | Rugby 08 kicks: ✕ long, □ high, △ grubber / box kick, ○ drop; blue arrow; chase and fielding |
+| 10 | Scoring | ⏭ next | Tries, conversions, drop goals, penalty goals |
 | 11 | Rules | | Referee: knock-on, forward pass, offside, advantage, touch |
 | 12 | 15v15 match | | Two teams play a full match start to finish |
 | 13 | Scrums | | Simplified engagement, push, stability, put-in |
@@ -241,3 +241,83 @@ Not done (by design / next):
 - ruck animation is a placeholder pose (TD on animation sourcing stands);
 - 6 v 6 leaves support far away: 35 % of rucks were "isolated". Expect
   fewer at 15 v 15 with forwards.
+
+## Milestone 09 — Kicking ✅
+
+Design (user, 2026-10-16, from how Rugby 08 played): every kick is held
+to charge and released; a blue arrow on the pitch shows where it goes.
+
+| Button (PS · Xbox · keys) | Kick |
+|---|---|
+| ✕ · A · Space | long kick: clearances, touch-finders; range grows with the kicker |
+| □ · X · V | high kick: a parabola, higher and further the more you charge |
+| △ · Y · F | grubber along the ground; **the 9 at the base of a ruck: box kick** |
+| ○ · B · G | drop goal at the posts: release in the green; too little falls short, too much flies wide |
+
+Delivered:
+- `KickModel` (pure): flights simulated with the ball's gravity and air
+  damping (the arrow and the AI see the real landing; measured within
+  ~0.7 m of the physics), a launch-speed solver, charge → distance by
+  kick type and kicking attribute, accuracy by kicking attribute, the drop
+  goal's sweet spot (window widens with skill, narrows with distance;
+  range limit by skill), kick-catch chance (handling, running, contested).
+- `KickSystem`: hold/aim/release API used by the human and the AI,
+  overhold auto-kick, cancelled if tackled, kicker can't catch his own
+  kick off the boot, flight tracking (catch point, landing), drop goal
+  detection through the posts.
+- `KickArrow`: Rugby 08's blue arrow while charging; a yellow ring where a
+  kick in the air comes down. HUD kick meter (type, metres; the drop goal
+  shows its green zone).
+- KICK phase: the receiving team's best-placed player goes under the ball
+  (the human gets him), the rest support; the kicking team's onside
+  players chase (two sprint at it) and the rest come up as a line.
+- AI kicking (team style gains a fifth number, `kicking`): box kicks from
+  the base of a ruck in its own half, clearances to touch from its own 22
+  under pressure, grubbers in behind a flat line, the odd up and under.
+- Fend moved to LT + ✕ (Rugby 08's skill-move modifier) because □ kicks.
+  Dev keys moved off the face buttons (F6 drop ball, F7 go to ground).
+- Notices: DROP GOAL! / DROP MISSED / REGATHERED; catching a kick is not
+  a "turnover".
+- 153 automated tests (+15).
+
+Measured (`tools/kick_soak.gd -- 16`):
+
+Range and spread (first landing, 200 kicks each):
+
+| kick (charge) | kicking 30 | kicking 60 | kicking 90 |
+|---|---|---|---|
+| long (full) | 48 m (sd 4.6, lateral 4.6) | 54 m (4.0, 3.5) | 61 m (2.9, 2.3) |
+| long (half) | 32 m (3.1, 2.9) | 35 m (2.5, 2.4) | 38 m (1.8, 1.2) |
+| high (60 %) | 23 m (1.9, 2.1) | 25 m (1.8, 1.6) | 27 m (1.2, 0.9) |
+| box (60 %) | 18 m (1.7, 1.6) | 20 m (1.4, 1.4) | 21 m (0.9, 0.7) |
+| grubber (60 %) | 11 m (2.1, 1.0) | 13 m (1.8, 0.8) | 14 m (1.4, 0.5) |
+
+Drop goals in front of the posts, kicking 88, by charge error:
+
+| distance | window | exact | ±0.05 | ±0.10 | ±0.20 |
+|---|---|---|---|---|---|
+| 20 m | ±0.15 | 100 % | 100 % | 100 % | 0 % |
+| 30 m | ±0.10 | 100 % | 100 % | 84 % | 0 % |
+| 38 m | ±0.08 | 100 % | 100 % | 1 % | 0 % |
+| 44 m | ±0.07 | 100 % | 100 % | 0 % | 0 % |
+
+A weak kicker (30) can't reach 35 m at all; a great one tops out ~45 m.
+
+Fielding a high kick: uncontested, the receivers catch 19/20 (1 knock-on).
+Kicked into space with the receivers 50 m away and the chase level with
+the kicker: 12 caught, 1 dropped, 7 bounced before anyone got there; the
+kickers never regathered (they chase from a standstill).
+
+AI vs AI (32 attacks of 20 s): 13 box kicks, 2 grubbers; 10 kicks caught
+by the receivers. Open play is unchanged (ai_soak NEW vs NEW 14 m, 40
+tackles; ruck retention 95 %).
+
+Not done (by design / next):
+- drop goals are detected but score nothing until M10; conversions and
+  penalty goals (with Rugby 08's goal-kick meter) come with scoring;
+- kicking to touch from a penalty, 50:22, kick-offs and restarts need the
+  referee and set pieces (M11/M13/M14); out of touch is still a dev restart;
+- offside at kicks (players in front of the kicker) is refereed in M11;
+- chasers rarely regather an up and under: watch in the playtest;
+- the AI doesn't attempt drop goals yet (needs the score, M10).
+

@@ -93,3 +93,25 @@ perfect", once defenders exist.
 - Big Ant forum, Rugby 25 fixes wishlist: https://board.bigant.com/t/what-would-you-like-to-see-fixed-before-time-is-called-on-rugby-25/4983
 - Planet Rugby, "Rugby 08 – the game that had everything": https://www.planetrugby.com/news/rugby-08-the-game-that-had-everything-and-why-world-rugby-must-get-its-act-together-for-future-generations
 - Ruck.co.uk, best rugby games ranked: https://www.ruck.co.uk/ranked-the-5-best-rugby-video-games-ever-made/4/
+
+## Kicking controls (from the user, who played it, 2026-10-16)
+
+No reliable control guide was found online (forum posts and reviews
+disagree; the manual scan wasn't reachable). The user's recollection,
+which M09 follows:
+
+- **✕ long kick** — charged by holding; a blue arrow on the pitch shows
+  the charge and direction. Good kickers kick much further. Used to clear
+  from deep and to kick a penalty to touch.
+- **□ high kick** — a parabola; more charge = higher and further.
+- **△ low kick** — a short grubber along the ground, used a lot in attack.
+- **○ drop goal** — hold to about half the charge and it flies at the
+  posts; too little or too much and it misses.
+- **△ by the 9 at a ruck** — a box kick over the ruck.
+- Any kick can be used at any time.
+
+Supporting fragments found online: a forum poster ("you can grubber,
+punt, up and under, drop goal") and a review mentioning the grubber on
+triangle and a half-circle meter for drop goals and goal kicks (GameFAQs
+Rugby 08 board; responsevoper.weebly.com review).
+

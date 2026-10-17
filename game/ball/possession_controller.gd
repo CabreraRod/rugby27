@@ -35,6 +35,8 @@ var _protect_timer := 0.0
 ## M08: while a ruck is on, nobody picks the ball up — the RuckSystem
 ## decides who gets it (the 9, or a defender on a turnover).
 var ruck_lock := false
+## M09: a kick coming down is caught with KickModel.catch_chance.
+var kicks: KickSystem
 
 
 func setup(p_ball: RugbyBall, p_tuning: BallTuning, p_players: Array[RugbyPlayer], seed_value: int = 8) -> void:
@@ -70,6 +72,8 @@ func _physics_process(delta: float) -> void:
 			continue
 		if protected_team and p.team != protected_team and not airborne:
 			continue
+		if airborne and kicks and kicks.in_flight and kicks.flight_age < 0.2:
+			continue   # just off the boot: nobody plucks it out of the air yet
 		if airborne:
 			# A pass in flight: the passer's teammates let it through to the
 			# intended receiver (opponents may intercept once they exist).
@@ -143,8 +147,19 @@ func _is_interception(p: RugbyPlayer) -> bool:
 var pass_age := 0.0
 
 
+## A kick coming down: base by handling, minus running and a contest.
+func kick_catch_chance(p: RugbyPlayer) -> float:
+	var kt := kicks.tuning
+	var contested := false
+	for o in players:
+		if o.team != p.team and o.is_on_feet() and o.planar_position().distance_to(p.planar_position()) < kt.catch_contest_radius:
+			contested = true
+			break
+	return KickModel.catch_chance(p.profile.attributes.norm("handling"), p.current_speed(), contested, kt)
+
+
 func attempt_catch(p: RugbyPlayer) -> bool:
-	var c := catch_chance(p)
+	var c := kick_catch_chance(p) if kicks and kicks.in_flight else catch_chance(p)
 	var intercepting := _is_interception(p)
 	if intercepting:
 		c *= pass_tuning.intercept_mult
@@ -160,7 +175,7 @@ func attempt_catch(p: RugbyPlayer) -> bool:
 			catch_failed.emit(p, c, CatchModel.is_knock_on(v, attack))
 		return false
 	if rng.randf() < c:
-		last_gain = &"catch"
+		last_gain = &"kick_catch" if kicks and kicks.in_flight else &"catch"
 		ball.attach(p)
 		p.play_action(&"catch", 0.25)
 		caught.emit(p, c)

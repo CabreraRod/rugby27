@@ -23,12 +23,20 @@ func _enter_tree() -> void:
 	_add("pass_left", [KEY_Q], [JOY_BUTTON_LEFT_SHOULDER], [], 0.5)
 	_add("pass_right", [KEY_E], [JOY_BUTTON_RIGHT_SHOULDER], [], 0.5)
 
-	# Ball carrier moves.
-	_add("fend", [KEY_V], [JOY_BUTTON_X], [], 0.5)
+	# Ball carrier moves. Fend (hand-off) = skill modifier (LT / L2 / Ctrl) + ✕,
+	# as in Rugby 08 (skill moves on LT + a face button).
+	_add("skill_mod", [KEY_CTRL], [], [[JOY_AXIS_TRIGGER_LEFT, 1.0]], TRIGGER_DEADZONE)
 	_add("sidestep_left", [KEY_Z], [], [[JOY_AXIS_RIGHT_X, -1.0]], 0.7)
 	_add("sidestep_right", [KEY_X], [], [[JOY_AXIS_RIGHT_X, 1.0]], 0.7)
 	# Defence.
 	_add("dive_tackle", [KEY_SPACE], [JOY_BUTTON_A], [], 0.5)
+	# Kicking (Rugby 08): hold to charge, release to kick. PlayStation face
+	# buttons → Xbox: ✕ = A, □ = X, △ = Y, ○ = B.
+	#   ✕ long kick · □ high kick · △ grubber (box kick for the 9 at a ruck) · ○ drop goal
+	_add("kick_long", [KEY_SPACE], [JOY_BUTTON_A], [], 0.5)
+	_add("kick_high", [KEY_V], [JOY_BUTTON_X], [], 0.5)
+	_add("kick_low", [KEY_F], [JOY_BUTTON_Y], [], 0.5)
+	_add("kick_drop", [KEY_G], [JOY_BUTTON_B], [], 0.5)
 	# Rucks (Rugby 08): X / ✕ commits one more player, □ holds the ball in
 	# (defence). PlayStation ✕ = bottom face button (Xbox A), □ = left (Xbox X).
 	_add("ruck_commit", [KEY_SPACE], [JOY_BUTTON_A], [], 0.5)
@@ -40,11 +48,11 @@ func _enter_tree() -> void:
 	# Developer tools (removed from release builds later).
 	_add("dev_debug_overlay", [KEY_F1], [], [], 0.5)
 	_add("dev_reset_player", [KEY_R], [JOY_BUTTON_START], [], 0.5)
-	_add("dev_go_to_ground", [KEY_G], [JOY_BUTTON_B], [], 0.5)
+	_add("dev_go_to_ground", [KEY_F7], [], [], 0.5)
 	_add("dev_cycle_role", [KEY_B], [], [], 0.5)
-	_add("dev_next_profile", [KEY_N], [JOY_BUTTON_Y], [], 0.5)
+	_add("dev_next_profile", [KEY_N], [], [], 0.5)
 	_add("dev_reload_tuning", [KEY_F5], [], [], 0.5)
-	_add("dev_drop_ball", [KEY_F], [], [], 0.5)
+	_add("dev_drop_ball", [KEY_F6], [], [], 0.5)
 	_add("dev_toss_ball", [KEY_T], [JOY_BUTTON_DPAD_DOWN], [], 0.5)
 	_add("dev_sandbox", [KEY_F2], [JOY_BUTTON_DPAD_UP], [], 0.5)
 

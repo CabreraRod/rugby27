@@ -1,6 +1,6 @@
 # Rugby 27 — Architecture
 
-Status: Milestone 08 — rucks (6 v 6, human vs AI team, passing, tackling, basic AI, Rugby 08 rucks).
+Status: Milestone 09 — kicking (6 v 6, human vs AI team, passing, tackling, basic AI, Rugby 08 rucks and kicks).
 
 ## Principles
 
@@ -32,6 +32,7 @@ Defined in `game/field/field_dimensions.gd` and used everywhere:
 ```
 match/        composition: bootstrap, Team, TeamControl (later MatchDirector)
   ├─ ui/, debug/, camera/, presentation/   read-only views
+  ├─ kicking/  KickSystem → KickModel core
   ├─ rucks/    RuckSystem → RuckModel core
   ├─ tackling/ TackleSystem → TackleModel core (forms rucks)
   ├─ passing/  PassingSystem → targeting / solver / catch cores
@@ -83,6 +84,11 @@ data/          JSON (tuning, players, teams)
 | `game/rucks/ruck_tuning.gd` | Ruck parameters (`data/tuning/ruck.json`). |
 | `game/rucks/ruck_model.gd` | Pure ruck maths: body units, contest P(turnover) with jackal bonus, hold penalty hazard, AI bid/counter/hold choices. |
 | `game/rucks/ruck_system.gd` | Ruck state machine: forms at a held tackle, commits (X), binding, contest, hold (□) and penalty, ball to the 9 or turnover, AI for both sides. |
+| `game/kicking/kick_tuning.gd` | Kicking parameters (`data/tuning/kick.json`). |
+| `game/kicking/kick_model.gd` | Pure kicking maths: flight simulation, launch solver, charge → distance, accuracy, drop goal sweet spot, kick-catch chance, touch aim. |
+| `game/kicking/kick_system.gd` | Charge / aim / release (human and AI), the kick, flight tracking (catch point, landing), drop goal detection. |
+| `game/presentation/kick_arrow.gd` | Blue charge arrow on the pitch; ring where a kick comes down. |
+| `tools/kick_soak.gd` | Range/accuracy by kicker, fielding, drop goal matrix, AI vs AI kicks. |
 | `tools/ruck_soak.gd` | AI vs AI ruck stats, scripted commit matrix, hold penalty curve. |
 | `game/ai/defence_tuning.gd` | Defence + AI-carrier parameters (`data/tuning/defence.json`). |
 | `game/ai/defensive_line.gd` | Pure defensive assignment: pursuer, man-for-man drift, sweepers, line speed, own-line clamp; with AI tuning: intercept-based pursuer, chase when beaten, cover, engage + dive decision. |
@@ -109,10 +115,13 @@ data/          JSON (tuning, players, teams)
 
 1. `TeamControl` ×2 (priority −10): each team's phase and intents (human /
    support runner / AttackAI slots + carrier decision / defensive line /
-   loose-ball chaser) →
-   `set_intent()`; human pass/switch buttons → `PassingSystem`.
+   loose-ball chaser / ruck / kick chase and fielding) →
+   `set_intent()`; human pass/kick/switch buttons → `PassingSystem` /
+   `KickSystem`.
 2. `PassingSystem` (−9): charge timer, auto-release, throw (ball released
    this tick), pass-in-flight timeout.
+2b. `KickSystem` (−8): kick charge, AI auto-release, the kick, drop goal
+   tracking.
 3. `RugbyPlayer._physics_process` (0): stamina → stats → `LocomotionModel.step` →
    facing → `momentum_velocity` saved → `move_and_slide` (Jolt) → velocity read back.
 3b. `TackleSystem` (3): carrier in contact with an opponent → TackleModel →
@@ -145,8 +154,8 @@ Empty placeholder folders are deliberately **not** created now.
 - **Rules (M11):** `RugbyBall.released(by, velocity, reason)` and
   `went_dead(zone, point)` are the events the referee will consume
   (knock-on = forward release by hands; touch → lineout).
-- **Kicking (M09):** the 9 waits at `RuckSystem.nine_spot()`; the box
-  kick (△) hooks in where `_give_to_nine()` hands him the ball.
+- **Scoring (M10):** `KickSystem.drop_result` is the drop goal event;
+  conversions/penalty goals reuse `KickModel` (height at the posts plane).
 - **Rules (M11):** `RuckSystem.penalised` is the event the referee will
   turn into a real penalty (today: placeholder, ball to the 9);
   `offside_clamp()` is where offside at the ruck gets enforced.

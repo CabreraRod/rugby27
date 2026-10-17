@@ -7,11 +7,13 @@ extends RefCounted
 ##   width      — lateral spacing of the support line.
 ##   aggression — defensive line speed (rush vs. sit and drift).
 ##   passing    — appetite to pass rather than carry.
+##   kicking    — appetite to kick (box kicks, clearances, grubbers, bombs).
 
 var tempo := 50.0
 var width := 50.0
 var aggression := 50.0
 var passing := 50.0
+var kicking := 50.0
 
 
 static func from_dict(d: Dictionary) -> TeamStyle:
@@ -20,6 +22,7 @@ static func from_dict(d: Dictionary) -> TeamStyle:
 	s.width = clampf(float(d.get("width", 50)), 0.0, 100.0)
 	s.aggression = clampf(float(d.get("aggression", 50)), 0.0, 100.0)
 	s.passing = clampf(float(d.get("passing", 50)), 0.0, 100.0)
+	s.kicking = clampf(float(d.get("kicking", 50)), 0.0, 100.0)
 	return s
 
 

@@ -10,6 +10,9 @@ extends Node
 ##            the DefensiveLine.
 ##   LOOSE  — nobody has it: nearest non-controlled player chases it, the
 ##            rest hold support slots around the ball.
+##   KICK   — a kick is in the air (M09): the receiving team's best-placed
+##            player goes under it and the rest support him; the kicking
+##            team's onside chasers run at it and the rest form a line.
 ##   RUCK   — a ruck is on (M08): committed players run in and bind; the
 ##            attack's 9 goes to the ball and the rest form a line around
 ##            him; the defence lines up behind the offside line. Human: X
@@ -23,7 +26,7 @@ extends Node
 
 signal controlled_changed(old: RugbyPlayer, new: RugbyPlayer)
 
-enum Phase { ATTACK, DEFEND, LOOSE, RUCK }
+enum Phase { ATTACK, DEFEND, LOOSE, RUCK, KICK }
 
 ## Tests switch this off to drive players directly.
 var active := true
@@ -37,6 +40,8 @@ var support: SupportTuning
 var defence: DefenceTuning
 ## M08: the match's ruck system (null in tests without one).
 var ruck: RuckSystem
+## M09: the match's kick system (null in tests without one).
+var kicks: KickSystem
 var controlled: RugbyPlayer
 var phase: Phase = Phase.LOOSE
 
@@ -75,6 +80,36 @@ func setup(p_team: Team, p_opponents: Team, p_ball: RugbyBall, p_passing: Passin
 	passing.pass_thrown.connect(_on_pass_thrown)
 
 
+## M09: kicking. The AI kicks through AttackAI; a human receiving a kick is
+## given the player best placed to field it.
+func set_kicks(k: KickSystem) -> void:
+	kicks = k
+	if attack_ai:
+		attack_ai.kicks = k
+	k.kicked.connect(_on_kicked)
+
+
+func _on_kicked(_kicker: RugbyPlayer, _type: KickModel.Type, _landing: Vector2) -> void:
+	if is_human() and kicks.in_flight and kicks.kick_team != team:
+		var f := fielder()
+		if f:
+			set_controlled(f)
+
+
+## Our player who can get under the kick soonest.
+func fielder() -> RugbyPlayer:
+	var best: RugbyPlayer = null
+	var best_t := INF
+	for p in team.players:
+		if not p.is_on_feet():
+			continue
+		var t := p.planar_position().distance_to(kicks.catch_point) / maxf(p.stats.sprint_top, 1.0)
+		if t < best_t:
+			best_t = t
+			best = p
+	return best
+
+
 ## Turns on the M07 AI with this team's style. Support and defence tunings
 ## become per-team copies scaled by the style.
 func configure_ai(p_style: TeamStyle, p_ai: AITuning, p_tackle: TackleTuning, level: int = 1, seed_value: int = 77) -> void:
@@ -86,6 +121,7 @@ func configure_ai(p_style: TeamStyle, p_ai: AITuning, p_tackle: TackleTuning, le
 		support = AttackAI.styled_support(support, style)
 		defence = _styled_defence(defence, style)
 	attack_ai = AttackAI.new(ai, style, support, tackle_t, seed_value)
+	attack_ai.kicks = kicks
 
 
 static func _styled_defence(base: DefenceTuning, s: TeamStyle) -> DefenceTuning:
@@ -141,6 +177,8 @@ func _physics_process(delta: float) -> void:
 			_drive_loose()
 		Phase.RUCK:
 			_drive_ruck()
+		Phase.KICK:
+			_drive_kick()
 	if is_human():
 		_read_buttons()
 
@@ -148,6 +186,8 @@ func _physics_process(delta: float) -> void:
 func _phase() -> Phase:
 	if ruck and ruck.is_active():
 		return Phase.RUCK
+	if kicks and kicks.in_flight:
+		return Phase.KICK
 	if passing.in_flight and passing.flight_passer:
 		return Phase.ATTACK if team.has(passing.flight_passer) else Phase.DEFEND
 	if ball.carrier:
@@ -255,6 +295,77 @@ func _drive_defence() -> void:
 		# Don't leave the human on a player lying on the floor.
 		if controlled.state == RugbyPlayer.State.GROUNDED and controlled.planar_position().distance_to(Vector2(b.x, b.z)) > 3.0:
 			switch_to_nearest_ball(true)
+
+
+# --- Kick in the air (M09) -----------------------------------------------------------------
+
+func _drive_kick() -> void:
+	assignments.clear()
+	chaser = null
+	var k := kicks
+	var target := k.catch_point
+	var others: Array[RugbyPlayer] = []
+	if k.kick_team != team:
+		# Field it: the best-placed player goes under the ball.
+		var f := fielder()
+		chaser = f
+		for p in team.players:
+			if p != f and p != controlled:
+				others.append(p)
+		slots = SupportRunner.assign_slots(target, team, others, support)
+		for p in team.players:
+			if p == controlled:
+				_apply(p, human.read_intent())
+			elif p == f:
+				var d := p.planar_position().distance_to(target)
+				var it := SupportRunner.steer_to(p.planar_position(), target, Vector2.ZERO, p.stats.jog_top, 3.0, k.tuning.receiver_settle)
+				it.sprint = d > 3.0
+				it.mag = 1.0 if d > 3.0 else it.mag
+				_apply(p, it)
+			elif slots.has(p):
+				_apply(p, SupportRunner.steer(p.planar_position(), slots[p], Vector2.ZERO, p.stats.jog_top, support))
+			else:
+				_apply(p, SupportRunner.Intent.new())
+		return
+	# Chase it: onside players (level with or behind the kicker) race to it,
+	# the rest come up as a line behind them.
+	slots.clear()
+	var attack := team.attack()
+	var onside: Array[RugbyPlayer] = []
+	for p in team.players:
+		if p != controlled and p.is_on_feet() and (p.planar_position() - k.kick_from).dot(attack) <= 0.5:
+			onside.append(p)
+	onside.sort_custom(func(a, b): return a.planar_position().distance_to(target) / a.stats.sprint_top < b.planar_position().distance_to(target) / b.stats.sprint_top)
+	var chasers: Array[RugbyPlayer] = []
+	for i in mini(int(k.tuning.chasers), onside.size()):
+		chasers.append(onside[i])
+	if not chasers.is_empty():
+		chaser = chasers[0]
+	var liners: Array[RugbyPlayer] = []
+	for p in team.players:
+		if p != controlled and not chasers.has(p):
+			liners.append(p)
+	liners.sort_custom(func(a, b): return a.global_position.z < b.global_position.z)
+	var line_x := target - attack * k.tuning.chase_line_back
+	var spacing := support.spacing * 1.2
+	for i in liners.size():
+		var lat := (i - (liners.size() - 1) * 0.5) * spacing
+		var max_z := FieldDimensions.HALF_WIDTH - 2.0
+		slots[liners[i]] = Vector2(line_x.x, clampf(line_x.y + lat, -max_z, max_z))
+	for p in team.players:
+		if p == controlled:
+			_apply(p, human.read_intent())
+		elif chasers.has(p):
+			var it := SupportRunner.steer_to(p.planar_position(), target, Vector2.ZERO, p.stats.jog_top, 3.0, 0.0)
+			it.sprint = true
+			it.mag = 1.0
+			_apply(p, it)
+		elif slots.has(p):
+			var it := SupportRunner.steer_to(p.planar_position(), slots[p], Vector2.ZERO, p.stats.jog_top, 2.0, 0.5)
+			it.sprint = p.planar_position().distance_to(slots[p]) > 8.0
+			_apply(p, it)
+		else:
+			_apply(p, SupportRunner.Intent.new())
 
 
 # --- Ruck (M08) ------------------------------------------------------------------------
@@ -392,8 +503,11 @@ func _read_buttons() -> void:
 		_read_ruck_input()
 		return
 	if ball.carrier == controlled:
-		_read_pass_input()
-		if Input.is_action_just_pressed("fend"):
+		if kicks:
+			_read_kick_input()
+		if not (kicks and kicks.charging):
+			_read_pass_input()
+		if Input.is_action_pressed("skill_mod") and Input.is_action_just_pressed("kick_long"):
 			controlled.try_fend()
 		if Input.is_action_just_pressed("sidestep_left"):
 			controlled.try_sidestep(-1.0)
@@ -422,6 +536,35 @@ func _read_ruck_input() -> void:
 			if Input.is_action_just_pressed(PASS_ACTIONS[i]):
 				switch_to_nearest_ball(true)
 				return
+
+
+const KICK_ACTIONS := ["kick_long", "kick_high", "kick_low", "kick_drop"]
+var _kick_action := ""
+
+
+## Hold ✕ / □ / △ / ○ to charge, the stick aims, release to kick.
+## LT (skill modifier) + ✕ is a fend, not a kick.
+func _read_kick_input() -> void:
+	if kicks.charging and kicks.charge_kicker == controlled and _kick_action != "":
+		var it := human.read_intent()
+		kicks.set_aim(it.dir if it.mag > 0.2 else Vector2.ZERO)
+		if not Input.is_action_pressed(_kick_action):
+			_kick_action = ""
+			kicks.release()
+		return
+	_kick_action = ""
+	if kicks.charging or passing.charging or Input.is_action_pressed("skill_mod"):
+		return
+	for i in KICK_ACTIONS.size():
+		if Input.is_action_just_pressed(KICK_ACTIONS[i]):
+			var type: KickModel.Type = [KickModel.Type.LONG, KickModel.Type.HIGH, KickModel.Type.LOW, KickModel.Type.DROP][i]
+			if type == KickModel.Type.LOW:
+				type = kicks.low_or_box(controlled)
+			if kicks.begin(controlled, type):
+				_kick_action = KICK_ACTIONS[i]
+				var it := human.read_intent()
+				kicks.set_aim(it.dir if it.mag > 0.2 else Vector2.ZERO)
+			return
 
 
 func _read_pass_input() -> void:

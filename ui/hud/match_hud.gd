@@ -9,6 +9,30 @@ var player: RugbyPlayer
 var ball: RugbyBall
 var team_control: TeamControl
 var rucks: RuckSystem
+var kicks: KickSystem
+
+
+## Kick charge meter: fill, and for the drop goal the sweet spot in green.
+class KickMeter extends Control:
+	var charge := 0.0
+	var sweet := -1.0
+	var window := 0.0
+
+	func _draw() -> void:
+		var r := Rect2(Vector2.ZERO, size)
+		draw_rect(r, Color(1, 1, 1, 0.14))
+		if sweet >= 0.0:
+			var z := Rect2(Vector2(size.x * (sweet - window), 0), Vector2(size.x * window * 2.0, size.y))
+			draw_rect(z, Color(0.3, 0.85, 0.45, 0.55))
+		draw_rect(Rect2(Vector2.ZERO, Vector2(size.x * clampf(charge, 0.0, 1.0), size.y)), Color(0.25, 0.55, 1.0, 0.9))
+		if sweet >= 0.0:
+			var x := size.x * clampf(charge, 0.0, 1.0)
+			draw_line(Vector2(x, -3), Vector2(x, size.y + 3), Color.WHITE, 2.0)
+
+
+var _kick_box: VBoxContainer
+var _kick_label: Label
+var _kick_meter: KickMeter
 
 var _name_label: Label
 var _speed_label: Label
@@ -86,7 +110,7 @@ func _ready() -> void:
 	v.add_child(_stamina_bar)
 
 	_hint = Label.new()
-	_hint.text = "Move: WASD / L-stick   Sprint: Shift / RT   Pass: Q / E · LB / RB (hold = long)   Fend: V / X   Sidestep: Z / X key · R-stick flick\nDefending: run into the carrier to tackle · Dive: Space / A · Switch: Q / E · LB / RB\nRuck: X (PS) · A (Xbox) · Space: commit a player · □ (PS) · X (Xbox) · V: hold the ball in (defence, risks a penalty)      Camera C · Debug F1 · Sandbox F2 · Reset R"
+	_hint.text = "Move: WASD / L-stick   Sprint: Shift / RT   Pass: Q / E · LB / RB (hold = long)   Fend: LT+A · Ctrl+Space   Sidestep: Z / X key · R-stick flick\nKick (hold, aim with the stick, release): long ✕ A Space · high □ X V · grubber △ Y F (box kick for the 9 at a ruck) · drop ○ B G\nDefending: run into the carrier to tackle · Dive: Space / A · Switch: Q / E · LB / RB\nRuck: X (PS) · A (Xbox) · Space: commit a player · □ (PS) · X (Xbox) · V: hold the ball in (defence, risks a penalty)      Camera C · Debug F1 · Sandbox F2 · Reset R"
 	_hint.anchor_left = 0.5
 	_hint.anchor_right = 0.5
 	_hint.offset_left = -700
@@ -98,6 +122,26 @@ func _ready() -> void:
 	_hint.add_theme_constant_override("shadow_offset_x", 1)
 	_hint.add_theme_constant_override("shadow_offset_y", 1)
 	add_child(_hint)
+
+	_kick_box = VBoxContainer.new()
+	_kick_box.anchor_left = 0.5
+	_kick_box.anchor_right = 0.5
+	_kick_box.anchor_top = 1.0
+	_kick_box.anchor_bottom = 1.0
+	_kick_box.offset_left = -170
+	_kick_box.offset_right = 170
+	_kick_box.offset_top = -96
+	_kick_box.offset_bottom = -40
+	_kick_box.visible = false
+	add_child(_kick_box)
+	_kick_label = Label.new()
+	_kick_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_kick_label.add_theme_font_size_override("font_size", 18)
+	_kick_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
+	_kick_box.add_child(_kick_label)
+	_kick_meter = KickMeter.new()
+	_kick_meter.custom_minimum_size = Vector2(340, 14)
+	_kick_box.add_child(_kick_meter)
 
 	_notice = Label.new()
 	_notice.anchor_left = 0.5
@@ -112,6 +156,23 @@ func _ready() -> void:
 	_notice.add_theme_constant_override("shadow_offset_y", 2)
 	_notice.visible = false
 	add_child(_notice)
+
+
+func _update_kick_meter() -> void:
+	var show := kicks != null and kicks.charging and kicks.charge_kicker == player
+	_kick_box.visible = show
+	if not show:
+		return
+	var pv: Array = kicks.preview()
+	_kick_meter.charge = kicks.charge()
+	if kicks.charge_type == KickModel.Type.DROP:
+		_kick_meter.sweet = kicks.tuning.drop_sweet
+		_kick_meter.window = KickModel.drop_window(player.profile.attributes.norm("kicking"), pv[1], kicks.tuning)
+		_kick_label.text = "DROP GOAL  ·  %d m  ·  release in the green" % int(pv[1])
+	else:
+		_kick_meter.sweet = -1.0
+		_kick_label.text = "%s  ·  %d m" % [KickModel.type_name(kicks.charge_type), int(pv[1])]
+	_kick_meter.queue_redraw()
 
 
 ## "RUCK  2 v 1  ·  ✕ commit  ·  □ hold" — our bodies first.
@@ -166,6 +227,7 @@ func _process(delta: float) -> void:
 			_:
 				_phase_label.text = "LOOSE BALL"
 				_phase_label.add_theme_color_override("font_color", Color("#ffd23f"))
+	_update_kick_meter()
 	# Alpha (not visibility) so the panel layout never jumps.
 	_ball_tag.modulate.a = 1.0 if ball != null and ball.carrier == player else 0.0
 	if _notice_timer > 0.0:

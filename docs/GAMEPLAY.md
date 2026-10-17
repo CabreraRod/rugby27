@@ -19,18 +19,22 @@ must happen in the same tick, every time.
 | Defending: switch to the teammate nearest the ball | Q or E | LB or RB |
 | Defending: tackle | run into the carrier | run into the carrier |
 | Defending: dive tackle | Space | A / Cross |
-| Carrying: fend (hand-off) | V | X / Square |
+| Carrying: fend (hand-off) | Ctrl + Space | LT / L2 + A / Cross |
+| Carrying: long kick (hold to charge, stick aims, release) | Space | A / Cross |
+| Carrying: high kick (up and under) | V | X / Square |
+| Carrying: grubber · the 9 at the base of a ruck: box kick | F | Y / Triangle |
+| Carrying: drop goal (release in the green) | G | B / Circle |
 | Carrying: sidestep left / right | Z / X | right stick flick |
 | Ruck: commit one more player (both teams) | Space | A / Cross (X) |
 | Ruck, defending: hold the ball in (risks a penalty) | V (hold) | X / Square (hold) |
 | Toggle camera (side / end-on) | C | Back/View |
 | Debug overlay | F1 | — |
 | Toggle single-player sandbox / team mode | F2 | D-pad up |
-| Dev: go to ground | G | B / Circle |
+| Dev: go to ground | F7 | — |
 | Dev: toggle neutral/defender (when not carrying) | B | — |
-| Dev: drop the ball (forward, knock-on style) | F | — |
+| Dev: drop the ball (forward, knock-on style) | F6 | — |
 | Dev: toss a bouncing ball toward you | T | D-pad down |
-| Dev: next profile for the controlled player | N | Y / Triangle |
+| Dev: next profile for the controlled player | N | — |
 | Dev: reset lineup + ball | R | Start |
 | Dev: hot-reload all `data/tuning/*.json` | F5 | — |
 
@@ -332,6 +336,35 @@ Rugby 08 rucks: quick, readable, no mini-game, but a real contest.
 - **AI**: bids by aggression, isolation and own-line proximity; sometimes
   holds; answers a bid to stay one body ahead.
 - Measured: see ROADMAP (`tools/ruck_soak.gd`).
+
+## Kicking (Milestone 09)
+
+Rugby 08 kicking: hold the button to charge, the blue arrow on the pitch
+shows direction and length, the left stick aims (up to 75° off straight),
+release to kick. A full charge held 0.5 s longer kicks by itself; tackled
+while charging = no kick.
+
+- **✕ long kick**: 15 m with no charge up to the kicker's range (42 m for a
+  poor kicker, 62 m for a great one) at 34°. Clearances and touch-finders.
+- **□ high kick**: a 68° parabola, 8–40 m; the more you charge, the higher
+  and further. Hangs ~3–4 s for the chase.
+- **△ grubber**: driven into the ground, bounces along 4–20 m.
+- **△ by the 9 at the base of a ruck** (within 2 s and 3 m of the ruck):
+  box kick, a 70° kick over the ruck, 8–30 m, quicker charge (0.7 s).
+- **○ drop goal**: aims itself at the posts. The meter's sweet spot is in
+  the middle; the green window is wider for good kickers and narrower
+  further out. Too little: hooks and falls short; too much: flies long and
+  wide. Range: ~30 m for a poor kicker, ~45 m for a great one.
+- **Accuracy**: direction and distance spread shrink with the kicking
+  attribute (see ROADMAP for the measured table).
+- **In the air**: a yellow ring marks where it comes down. The receiving
+  team's best-placed player goes under it (you get him if you're
+  receiving); the kicking team's onside players chase. Catching a kick:
+  80–97 % by handling, −30 % with an opponent within 1.8 m, less on the
+  run. The kicker can't take his own kick off the boot.
+- **AI**: box kicks from rucks in its own half, clears to touch from its
+  own 22 under pressure, grubbers in behind a flat line, the odd up and
+  under. Team style `kicking` (0–100) sets the appetite.
 
 ## Camera
 
